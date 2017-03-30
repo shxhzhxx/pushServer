@@ -6,21 +6,24 @@ push server for web server (php etc) to push message to client
 
 修改push.h的配置信息：
 
-#define SERVER_IP_ADDRESS "192.168.2.109"     					//推送服务器的ip\n
-#define BIND_SERVER_PORT "3889"									//开放给客户端绑定推送服务器的端口\n
-#define PUSH_SERVER_PORT "3899"									//开放给服务器端的端口\n
-#define TIME_OUT 5000\n
-#define CALLBACK_TIME_OUT 10000\n
-#define MAX_MESSAGE_SIZE 512									//推送信息的最大长度\n
-#define LOG_PATH "/home/shxhzhxx/tcp_push/push_log.log"			//日志路径\n
+```c++
+#define SERVER_IP_ADDRESS "192.168.2.109"     					//推送服务器的ip
+#define BIND_SERVER_PORT "3889"									//开放给客户端绑定推送服务器的端口
+#define PUSH_SERVER_PORT "3899"									//开放给服务器端的端口
+#define TIME_OUT 5000
+#define CALLBACK_TIME_OUT 10000
+#define MAX_MESSAGE_SIZE 512									//推送信息的最大长度
+#define LOG_PATH "/home/shxhzhxx/tcp_push/push_log.log"			//日志路径
+```
 
 linux系统上编译：
-
+```shell
 g++ -c main.cpp
 g++ -c json.cpp
 g++ -c push.cpp
 g++ -c rb_tree.cpp
 g++ main.o json.o push.o rb_tree.o -lpthread -lm
+```
 
 运行程序
 
