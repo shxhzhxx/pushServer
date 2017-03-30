@@ -250,9 +250,11 @@ function push($id_arr,$content){
 
 push(array("128283689494703","128283689494704"),array('time'=>time(),'rand'=>rand(),'text'=>"abcde"));
 ```
-ids指定推送目标，是json数组格式，即使推送目标只有一个，也需要像这样调用
+content为推送内容，格式为jsonObject。ids指定推送目标，是json数组格式，即使推送目标只有一个，也需要像这样调用：
+```PHP
 push(array(110),array("text"=>"abcde"));
-content为推送内容，格式为jsonObject
+```
+
 
 如果需要知道推送是否成功，可以在调用时增加参数：
 ```PHP
@@ -279,7 +281,7 @@ function push($id_arr,$content,$push_id){
 ```
 "url?push_result=1&push_id=10&client_id=110"
 ```
-url由callback_url参数指定，
-push_result=0时推送成功，push_result=1时推送失败
-push_id由push_id参数指定，
-client_id为目标id
+url由callback_url参数指定。
+push_result=0时推送成功，push_result=1时推送失败。
+push_id由push_id参数指定。
+client_id为目标id。
