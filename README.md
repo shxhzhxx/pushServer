@@ -275,7 +275,10 @@ function push($id_arr,$content,$push_id){
 }
 ```
 
-推送成功时，会访问用get方式访问"url?push_result=1&push_id=10&client_id=110"
+推送成功时，会用get方式访问这个web连接：
+```
+"url?push_result=1&push_id=10&client_id=110"
+```
 url由callback_url参数指定，
 push_result=0时推送成功，push_result=1时推送失败
 push_id由push_id参数指定，
