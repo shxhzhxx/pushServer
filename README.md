@@ -237,10 +237,7 @@ function push($id_arr,$content){
 	if($fp=fsockopen("123.57.230.169",17294)){
 		$data=array(
 			'ids'=>$id_arr,
-			'content'=>$content,
-			// 'callback_type'=>1, //0:无回调   1:url回调
-			// 'push_id'=>10,
-			// 'callback_url'=>"http://bangumi.bilibili.com/anime/5550/",
+			'content'=>$content
 		);
 		if(!fwrite($fp,json_encode($data))){
 			//发送失败
@@ -253,3 +250,33 @@ function push($id_arr,$content){
 
 push(array("128283689494703","128283689494704"),array('time'=>time(),'rand'=>rand(),'text'=>"abcde"));
 ```
+ids指定推送目标，是json数组格式，即使推送目标只有一个，也需要像这样调用
+push(array(110),array("text"=>"abcde"));
+content为推送内容，格式为jsonObject
+
+如果需要知道推送是否成功，可以在调用时增加参数：
+```PHP
+function push($id_arr,$content,$push_id){
+	if($fp=fsockopen("123.57.230.169",17294)){
+		$data=array(
+			'ids'=>$id_arr,
+			'content'=>$content,
+			'callback_type'=>1, //0:无回调   1:url回调
+			'push_id'=>$push_id,
+			'callback_url'=>"http://bangumi.bilibili.com/anime/5550/",
+		);
+		if(!fwrite($fp,json_encode($data))){
+			//发送失败
+		}
+		fclose($fp);
+	}else{
+		//连接失败
+	}
+}
+```
+
+推送成功时，会访问用get方式访问"url?push_result=1&push_id=10&client_id=110"
+url由callback_url参数指定，
+push_result=0时推送成功，push_result=1时推送失败
+push_id由push_id参数指定，
+client_id为目标id
