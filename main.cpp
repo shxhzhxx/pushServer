@@ -480,7 +480,7 @@ void *callback_write_server(void * arg){
 
 
 int main(int argc,char *argv[]){
-	daemonize("rezhuo_push");
+	daemonize("push_server");
 
 	pthread_t tid_bind_tcp,tid_bind_request,tid_push_tcp,tid_push_request,tid_timeout,tid_callback,tid_callback_write;
 	rb_tree data_tree;
@@ -491,7 +491,7 @@ int main(int argc,char *argv[]){
 	int bind_epollfd=epoll_create1(0);
 	int push_epollfd=epoll_create1(0);
 	int callback_epollfd=epoll_create1(0);
-	logger logger("/home/shxhzhxx/tcp_push/push_log.log");
+	logger logger(LOG_PATH);
 
 	common_data c_data={&link,&data_tree,&callback_link,&callback_write_link,&logger,epollfd,bind_epollfd,push_epollfd,callback_epollfd};
 

@@ -37,6 +37,7 @@
 #define TIME_OUT 5000
 #define CALLBACK_TIME_OUT 10000
 #define MAX_MESSAGE_SIZE 512
+#define LOG_PATH "/home/shxhzhxx/tcp_push/push_log.log"
 
 
 
