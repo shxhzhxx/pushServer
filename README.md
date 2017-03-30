@@ -39,8 +39,8 @@ public class PushThread extends Thread {
     private long id;
     private int num_sec = 3;
     private static final int max_sleep = 1536;
-    private String host ;
-    private int port;
+    private String host="192.168.2.109" ;
+    private int port=3889;
     private Socket socket;
     private boolean auto_reconnect = false;
     private IntCallback state_callback;
@@ -52,9 +52,7 @@ public class PushThread extends Thread {
     public interface StringCallback{
         void callback(String str);
     }
-    public PushThread(String host,int port,long id,boolean auto_reconnect, IntCallback state_callback, StringCallback push_callback) {
-        this.host=host;
-        this.port=port;
+    public PushThread(long id,boolean auto_reconnect, IntCallback state_callback, StringCallback push_callback) {
         this.id = id;
         this.auto_reconnect=auto_reconnect;
         this.state_callback = state_callback;
@@ -153,4 +151,105 @@ public class PushThread extends Thread {
     }
 }
 
+```
+
+在Service中执行PushThread，并用适当的方法处理收到的推送信息。其中绑定推送服务器时的id需要是唯一的，对于单个应用，id可以是用户的id或其他任何唯一的长整形数字，这个id
+将作为推送时标识客户端的依据。如果不想在服务端生成id，可以用移动设备的IMEI或MAC地址等唯一标识。
+
+```Java
+public class MyService extends Service {
+    private static final String TAG=MyService.class.getSimpleName();
+    private PushThread task=null;
+    private int current_state=PushThread.STATE_UNBIND;
+    private PushThread.IntCallback state_callback=new PushThread.IntCallback() {
+        @Override
+        public void callback(int state) {
+            current_state=state;
+            Log.d(TAG,"current state:"+current_state);
+            switch (state){
+                case PushThread.STATE_CONNECTING:
+                    Log.d(TAG,"正在连接推送服务器");
+                    break;
+                case PushThread.STATE_BIND_FAILED:
+                    Log.d(TAG,"连接推送服务器失败");
+                    break;
+                case PushThread.STATE_BIND_SUCCESS:
+                    Log.d(TAG,"连接推送服务器成功");
+                    break;
+                case PushThread.STATE_UNBIND:
+                    Log.d(TAG,"与推送服务器断开连接");
+                    if(isNetworkAvailable())
+                        startWork();
+                    break;
+            }
+        }
+    };
+    private PushThread.StringCallback push_callback=new PushThread.StringCallback() {
+        @Override
+        public void callback(String message) {
+            Log.d(TAG,"message:"+message);
+        }
+    };
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        if(isNetworkAvailable()){
+            startWork();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        stopWork();
+    }
+
+    private void startWork(){
+        long id=111;
+        stopWork();
+        task=new PushThread(id,false,state_callback,push_callback);
+        task.start();
+    }
+    public void stopWork(){
+        if(task!=null){
+            task.interrupt();
+            task=null;
+        }
+    }
+
+    public boolean isNetworkAvailable() {
+        ConnectivityManager connMgr = (ConnectivityManager)
+                this.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
+    }
+}
+```
+
+服务端调用，以PHP为例：
+```PHP
+function push($id_arr,$content){
+	if($fp=fsockopen("123.57.230.169",17294)){
+		$data=array(
+			'ids'=>$id_arr,
+			'content'=>$content,
+			// 'callback_type'=>1, //0:无回调   1:url回调
+			// 'push_id'=>10,
+			// 'callback_url'=>"http://bangumi.bilibili.com/anime/5550/",
+		);
+		if(!fwrite($fp,json_encode($data))){
+			//发送失败
+		}
+		fclose($fp);
+	}else{
+		//连接失败
+	}
+}
+
+push(array("128283689494703","128283689494704"),array('time'=>time(),'rand'=>rand(),'text'=>"abcde"));
 ```
