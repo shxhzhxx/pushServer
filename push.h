@@ -30,14 +30,14 @@
 
 
 
-#define SERVER_IP_ADDRESS "192.168.2.109"
+#define SERVER_IP_ADDRESS "192.168.136.129"
 #define BIND_SERVER_PORT "3889"
 #define PUSH_SERVER_PORT "3899"
 #define MAX_EVENTS 10
 #define TIME_OUT 5000
 #define CALLBACK_TIME_OUT 10000
 #define MAX_MESSAGE_SIZE 512
-#define LOG_PATH "/home/shxhzhxx/tcp_push/push_log.log"
+#define LOG_PATH "/home/shxhzhxx/code/github/pushServer/push_log.log"
 
 
 
