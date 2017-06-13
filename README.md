@@ -86,7 +86,7 @@ public class PushThread extends Thread {
                 }
             } catch (IOException e) {
                 Log.d(TAG,e.getMessage());
-            } catch (JSONException e) {//不应该出异常的
+            } catch (JSONException e) {
                 Log.d(TAG, "JSONException:"+e.getMessage());
             }
             //建立连接失败
@@ -279,7 +279,7 @@ function push($id_arr,$content,$push_id){
 
 推送成功时，会用get方式访问这个web连接：
 ```
-"url?push_result=1&push_id=10&client_id=110"
+url?push_result=1&push_id=10&client_id=110
 ```
 url由callback_url参数指定。
 push_result=0时推送成功，push_result=1时推送失败。
