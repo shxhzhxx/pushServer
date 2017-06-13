@@ -14,7 +14,7 @@ push server for web server (php etc) to push message to client
 #define LOG_PATH "/home/shxhzhxx/tcp_push/push_log.log"  //日志路径
 ```
 
-linux系统上编译：
+linux系统上make编译或依次执行下列编译命令：
 ```shell
 g++ -c main.cpp
 g++ -c json.cpp
