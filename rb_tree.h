@@ -7,12 +7,15 @@ const int RED = 1;
 
 class satellite {
 public:
+    friend class rb_tree;
+    
     satellite();
     virtual ~satellite();
-    int mutex_trylock();
-    void mutex_lock();
     void mutex_unlock();
 private:
+    int mutex_trylock();
+    void mutex_lock();
+
     pthread_mutex_t *mutex;
 };
 
@@ -43,38 +46,36 @@ public:
     /**
      * 查找一条数据，未找到时返回NULL，找到时返回指向数据的指针
      */
-    satellite *search(long _key, bool auto_lock = false);
+    satellite *search(long key, bool lock = true);
 
     /**
      * 查找数据，
-     * lock=0 不上锁           找到数据时返回0，否则返回-1
-     * lock=1 上锁             找到数据时返回0，否则返回-1   可能阻塞
-     * lock=2 尝试上锁         未找到数据时返回-1，找到数据但上锁失败时返回1，找到数据并上锁成功时返回0
+     * 尝试上锁   未找到数据时返回-1，找到数据但上锁失败时返回1，找到数据并上锁成功时返回0
      */
-    int search_try(long _key, satellite **result,int lock=0);
+    int search_try(long key, satellite **result);
 
     /**
      * 插入一条数据，key重复时返回1，并覆盖原数据，正常时返回0
      */
-    int insert(long _key, satellite *data, bool auto_lock = false);
+    int insert(long key, satellite *data, bool lock = true);
 
 
     /**
      * 尝试插入一条数据，key重复时返回1，并覆盖原数据，
      * 正常时返回0，
-     * key重复且插入（上锁）失败时返回-1，同时释放data的内存
+     * key重复且插入（上锁）失败时返回-1
      */
-    int insert_try(long _key, satellite *data, bool auto_lock = false);
+    int insert_try(long key, satellite *data, bool lock = true);
 
     /**
      * 移除一条数据，成功时返回0，未找到指定数据时返回-1
      */
-    int remove(long _key);
+    int remove(long key);
 
     /**
      *从小到大，返回第index个数据
      */
-    satellite *get(int index, bool auto_lock = false);
+    satellite *value_at(int index, bool lock = true);
 
     int size();
 

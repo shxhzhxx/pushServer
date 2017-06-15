@@ -52,7 +52,7 @@ void *bind_request(void * arg){
 					id=json.getLong("id");
 					switch(json.getInt("device_type")){
 						case 1: //android
-							if(data_tree->insert_try(id,(p=new user_data(id,sockfd)),true)==-1){
+							if(data_tree->insert_try(id,(p=new user_data(id,sockfd)))==-1){
 								send(sockfd,"301",3,MSG_NOSIGNAL); //绑定失败
 								close(sockfd);
 								logger_p->printf("(id:%ld) bind error id conflict\n",id);
@@ -156,7 +156,7 @@ void *push_request(void * arg){
 						switch(callback_type){
 							case 0: //无回调
 							case 1: //url回调
-								search_ret=data_tree->search_try(id,(satellite **)&p,2);
+								search_ret=data_tree->search_try(id,(satellite **)&p);
 								if(search_ret==0){
 									if(send(p->fd,content,strlen(content),MSG_NOSIGNAL)<0){ //push failed,broken link
 										p->mutex_unlock();

@@ -50,31 +50,29 @@ rb_tree::~rb_tree() {
     delete rwlock;
 }
 
-satellite *rb_tree::search(long _key, bool auto_lock) {
+satellite *rb_tree::search(long _key, bool lock) {
     rwlock_rdlock();
     node *result = 0;
     if (rb_search(_key, &result) == -1){
     	rwlock_unlock();
         return NULL;
     }
-    if (auto_lock){
+    if (lock){
         result->p->mutex_lock();
     }
     rwlock_unlock();
     return result->p;
 }
 
-int rb_tree::search_try(long _key, satellite **result,int lock){
+int rb_tree::search_try(long _key, satellite **result){
     rwlock_rdlock();
     node *node_p;
     if (rb_search(_key, &node_p) == -1){
         rwlock_unlock();
         return -1;
     }
-    int ret=0;
-    if (lock==1){
-        node_p->p->mutex_lock();
-    }else if(lock==2 && node_p->p->mutex_trylock()!=0){
+    int ret=0; 
+    if(node_p->p->mutex_trylock()!=0){
         ret=1;
     }
     rwlock_unlock();
@@ -82,10 +80,10 @@ int rb_tree::search_try(long _key, satellite **result,int lock){
     return ret;
 }
 
-int rb_tree::insert(long _key, satellite *data, bool auto_lock) {
+int rb_tree::insert(long _key, satellite *data, bool lock) {
     rwlock_wrlock();
     int result_code = rb_insert(_key, data);
-    if (auto_lock)
+    if (lock)
         data->mutex_lock();
     if (result_code == 0)
         count++;
@@ -93,14 +91,13 @@ int rb_tree::insert(long _key, satellite *data, bool auto_lock) {
     return result_code;
 }
 
-int rb_tree::insert_try(long _key, satellite *data, bool auto_lock){
+int rb_tree::insert_try(long _key, satellite *data, bool lock){
     rwlock_wrlock();
     int result_code = rb_insert_try(_key, data);
     if(result_code==-1){//加锁失败
-        delete data;
         return -1;
     }
-    if (auto_lock){
+    if (lock){
         data->mutex_lock();
     }
     if (result_code == 0)
@@ -123,7 +120,7 @@ int rb_tree::remove(long _key) {
     }
 }
 
-satellite *rb_tree::get(int index, bool auto_lock) {
+satellite *rb_tree::value_at(int index, bool lock) {
     rwlock_rdlock();
     if (root == nil || index >= count || index < 0) {
         rwlock_unlock();
@@ -134,7 +131,7 @@ satellite *rb_tree::get(int index, bool auto_lock) {
         result = tree_successor(result);
         index--;
     }
-    if (auto_lock)
+    if (lock)
         result->p->mutex_lock();
     rwlock_unlock();
     return result->p;
