@@ -1,13 +1,16 @@
 #include "push.h"
 
-//============================logger===================================
-logger::logger(const char *path){
-	file=fopen(path,"a");
+//============================log===================================
+log::log(const char *path){
+	char *pathname=new char[strlen(path)+4]();
+	strcpy(pathname,path);
+	file=fopen(strcat(pathname,"log"),"a");
+	delete pathname;
 }
 
-logger::~logger(){fclose(file);}
+log::~log(){fclose(file);}
 
-void logger::printf(const char *format,...){
+void log::printf(const char *format,...){
 	time(&t);
 	tmp=localtime(&t);
 	strftime(buff,20,"%F %T",tmp);
@@ -20,215 +23,19 @@ void logger::printf(const char *format,...){
 	fflush(file);
 }
 
-void logger::flush(){
+void log::flush(){
 	fflush(file);
 }
 
-//============================message===================================
-message::message(const char *_content,int _callback_type,long _id,int _push_id,const char *_callback_url):push_id(_push_id),callback_url(0),callback_type(_callback_type),id(_id),push_success(false),next(0),timestamp(0),p(0),prev(0),callback_fd(0){
-	initial(_content,_callback_url);
+
+//============================client===================================
+client::client(long _id,int _fd) :id(_id), fd(_fd) {
 }
 
-message::message(const char *_content,int _callback_type,user_data *_p,int _push_id,const char *_callback_url):push_id(_push_id),callback_url(0),callback_type(_callback_type),push_success(false),next(0),timestamp(0),p(_p),prev(0),callback_fd(0){
-	initial(_content,_callback_url);
-	id=_p->id;
-}
-
-message::~message(){
-	delete []content;
-	delete []callback_url;
-	delete next;
-}
-
-void message::initial(const char *_content,const char *_callback_url){
-	content=new char[strlen(_content)+1]();
-	strcpy(content,_content);
-	if(_callback_url){
-		int index=0;
-		for (int i = 0; _callback_url[i]!=0; ++i){
-			if(_callback_url[i]!='\\'){
-				++index;
-			}
-		}
-		callback_url=new char[index+1]();
-		index=0;
-		for (int i = 0; _callback_url[i]!=0; ++i){
-			if(_callback_url[i]!='\\'){
-				callback_url[index]=_callback_url[i];
-				++index;
-			}
-		}
-	}
-}
-
-//============================user_data===================================
-user_data::user_data(long _id,int _fd) :id(_id), fd(_fd),msg_f(0),msg_l(0) {
-	msg_mutex = new pthread_mutex_t();
-	pthread_mutex_init(msg_mutex,NULL);
-}
-
-user_data::~user_data() {
-	delete msg_f;
+client::~client() {
 	close(fd);
-	pthread_mutex_destroy(msg_mutex);
-    delete msg_mutex;
 }
 
-void user_data::append_message(message *msg){
-	pthread_mutex_lock(msg_mutex);
-	if(msg_l){
-		msg_l->next=msg;
-		msg_l=msg_l->next;
-	}else{
-		msg_f=msg;
-		msg_l=msg;
-	}
-	pthread_mutex_unlock(msg_mutex);
-}
-
-message *user_data::pop_message(){
-	pthread_mutex_lock(msg_mutex);
-	message *ret=0;
-	if(msg_f){
-		ret=msg_f;
-		if(msg_f==msg_l){
-			msg_l=0;
-		}
-		msg_f=msg_f->next;
-		ret->next=0;
-	}
-	pthread_mutex_unlock(msg_mutex);
-	return ret;
-}
-
-
-//============================link_list===================================
-link_list::link_list(): msg_f(0),msg_l(0) {
-	mutex = new pthread_mutex_t();
-	pthread_mutex_init(mutex,NULL);
-	cond = new pthread_cond_t();
-	pthread_cond_init(cond,NULL);
-}
-
-link_list::~link_list(){
-	pthread_mutex_destroy(mutex);
-    delete mutex;
-    pthread_cond_destroy(cond);
-    delete cond;
-}
-
-void link_list::append_message_to_head(message *msg){
-	pthread_mutex_lock(mutex);
-	msg->next=msg_f;
-	if(msg_f){
-		msg_f->prev=msg;
-	}
-	msg_f=msg;
-	pthread_cond_signal(cond);
-	pthread_mutex_unlock(mutex);
-}
-
-void link_list::append_message(message *msg){
-	pthread_mutex_lock(mutex);
-	msg->timestamp=getCurrentTime();
-	if(msg_l){
-		msg_l->next=msg;
-		msg->prev=msg_l;
-		msg_l=msg_l->next;
-	}else{
-		msg_f=msg;
-		msg_l=msg;
-	}
-	pthread_cond_signal(cond);
-	pthread_mutex_unlock(mutex);
-}
-
-message *link_list::pop_message(){
-	pthread_mutex_lock(mutex);
-	message *ret=0;
-	if(msg_f){
-		ret=msg_f;
-		if(msg_f==msg_l){
-			msg_l=0;
-		}
-		msg_f=msg_f->next;
-		if(msg_f){
-			msg_f->prev=0;
-		}
-		ret->next=0;
-	}
-	pthread_mutex_unlock(mutex);
-	return ret;
-}
-
-message *link_list::pop_message_wait(){
-	pthread_mutex_lock(mutex);
-	message *ret=0;
-	while(!msg_f){
-		pthread_cond_wait(cond,mutex);
-	}
-	ret=msg_f;
-	if(msg_f==msg_l){
-		msg_l=0;
-	}
-	msg_f=msg_f->next;
-	if(msg_f){
-		msg_f->prev=0;
-	}
-	ret->next=0;
-	pthread_mutex_unlock(mutex);
-	return ret;
-}
-
-message *link_list::take_out_message(long id){
-	pthread_mutex_lock(mutex);
-	message *p=msg_f;
-	while(p){
-		if(p->p && p->p->id==id){
-			if(p->prev){
-				p->prev->next=p->next;
-			}else{
-				msg_f=p->next;
-			}
-			if(p->next){
-				p->next->prev=p->prev;
-			}else{
-				msg_l=p->prev;
-			}
-			p->next=0;
-			pthread_mutex_unlock(mutex);
-			return p;
-		}
-		p=p->next;
-	}
-	pthread_mutex_unlock(mutex);
-	return NULL;
-}
-
-message *link_list::take_out_message(message *msg){
-	pthread_mutex_lock(mutex);
-	message *p=msg_f;
-	while(p){
-		if(p==msg){
-			if(p->prev){
-				p->prev->next=p->next;
-			}else{
-				msg_f=p->next;
-			}
-			if(p->next){
-				p->next->prev=p->prev;
-			}else{
-				msg_l=p->prev;
-			}
-			p->next=0;
-			pthread_mutex_unlock(mutex);
-			return p;
-		}
-		p=p->next;
-	}
-	pthread_mutex_unlock(mutex);
-	return NULL;
-}
 
 
 //============================function===================================
@@ -278,13 +85,13 @@ int initTcpServer(const char * port){
 	int fd;
 	
 	memset(&hint,0,sizeof(hint));
-	hint.ai_flags=AI_CANONNAME;
+	hint.ai_flags=AI_PASSIVE;
 	hint.ai_socktype=SOCK_STREAM;
 	hint.ai_canonname=NULL;
 	hint.ai_addr=NULL;
 	hint.ai_next=NULL;
 
-	if((getaddrinfo(SERVER_IP_ADDRESS,port,&hint,&aip))!=0){
+	if((getaddrinfo(NULL,port,&hint,&aip))!=0){
 		return -1;
 	}
 	if((fd=socket(aip->ai_addr->sa_family,SOCK_STREAM,0))<0){
@@ -307,7 +114,7 @@ int initTcpClient(const char *ip,const char *port){
 	struct addrinfo hint;
 	
 	memset(&hint,0,sizeof(hint));
-	hint.ai_flags=AI_CANONNAME;
+	hint.ai_flags=0;
 	hint.ai_socktype=SOCK_STREAM;
 	hint.ai_canonname=NULL;
 	hint.ai_addr=NULL;

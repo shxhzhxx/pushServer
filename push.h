@@ -29,24 +29,15 @@
 #include <float.h>
 
 
-
-#define SERVER_IP_ADDRESS "192.168.136.129"
-#define BIND_SERVER_PORT "3889"
-#define PUSH_SERVER_PORT "3899"
-#define MAX_EVENTS 10
-#define TIME_OUT 5000
-#define CALLBACK_TIME_OUT 10000
-#define MAX_MESSAGE_SIZE 512
-#define LOG_PATH "/home/shxhzhxx/code/github/pushServer/push_log.log"
+#define SERVER_PORT "3889"
+#define MAX_MESSAGE_SIZE 1024
 
 
 
-class user_data;
-
-class logger{
+class log{
 public:
-	logger(const char *path);
-	~logger();
+	log(const char *path);
+	~log();
 	void printf(const char *format,...);
 	void flush();
 private:
@@ -58,75 +49,23 @@ private:
 };
 
 
-class message {
+
+
+class client : public satellite {
 public:
-	message(const char *_content,int _callback_type,long _id,int _push_id=0,const char *_callback_url=NULL);
-	message(const char *_content,int _callback_type,user_data *_p,int _push_id=0,const char *_callback_url=NULL);
-	~message();
-	
-	int callback_type;
-	int push_id;
-	char *callback_url;
-	bool push_success;
-	char *content;
-	message *next;
-
-	long timestamp;
-	user_data *p;
-	long id;
-	int callback_fd;
-	message *prev;
-private:
-	void initial(const char *_content,const char *_callback_url);
-};
-
-
-class user_data : public satellite {
-public:
-    user_data(long _id,int _fd = 0);
-    ~user_data();
-    void append_message(message *msg);
-    message *pop_message();
+    client(long id,int fd);
+    ~client();
 
     long id;
-    int device_type;
-    char *device_token;
     int fd;
-private:
-    pthread_mutex_t *msg_mutex;
-    message *msg_f;
-    message *msg_l;
 };
 
 
-class link_list {
-public:
-    link_list();
-    ~link_list();
-    void append_message_to_head(message *msg);
-	void append_message(message *msg);
-    message *pop_message();
-    message *pop_message_wait();
-    message *take_out_message(long id);
-    message *take_out_message(message *msg);
-    
-private:
-	message *msg_f;
-    message *msg_l;
-    pthread_mutex_t *mutex;
-    pthread_cond_t *cond;
-};
 
 struct common_data{
-	link_list *link;
-	rb_tree *data_tree;
-	link_list *callback_link;
-	link_list *callback_write_link;
-	logger *logger_p;
+	rb_tree *data;
+	log *log;
 	int epollfd;
-	int bind_epollfd;
-	int push_epollfd;
-	int callback_epollfd;
 };
 
 struct KeepConfig {
