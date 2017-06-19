@@ -46,6 +46,7 @@ void *read_thread(void * arg){
 		}else{
 			sockfd=ev[0].data.fd;
 			if((len=read(sockfd,buff,MAX_MESSAGE_SIZE))<=0){
+				log->printf("socket read -1\n", sockfd);
 				close(sockfd);
 			}else{
 				try{
@@ -53,29 +54,34 @@ void *read_thread(void * arg){
 					switch(json.getInt("cmd")){
 						case 1: //bind
 							id=json.getLong("id");
-							if(data->insert_try(id,(p=new client(id,sockfd)))==-1){
-								send(sockfd,"301",3,MSG_NOSIGNAL); //绑定失败
-								close(sockfd);
-								log->printf("(id:%ld) bind failed, id conflict\n",id);
+							data->insert(id,(p=new client(id,sockfd)));
+							if(send(sockfd,"200",3,MSG_NOSIGNAL)<0){
+								p->mutex_unlock();
+								data->remove(id);
+								log->printf("(id:%ld) send bind response failed\n", id);
 							}else{
-								if(send(sockfd,"200",3,MSG_NOSIGNAL)<0){
-									p->mutex_unlock();
-									data->remove(id);
-									log->printf("(id:%ld) send response failed\n", id);
-								}else{
-									p->mutex_unlock();
-									log->printf("(id:%ld) bind success\n", id);
-								}
-								p=0;
+								p->mutex_unlock();
+								log->printf("(id:%ld) bind success\n", id);
 							}
+							p=0;
 						break;
 						case 2: //push
 							buff[len]=0;
 							log->printf("push request:%s\n",buff);
 							jsonArray *id_arr=json.getJsonArray("ids");
 							const char *content=json.getString("content");
-							for(int i=0;i<id_arr->length();++i){//check param,ids array's element shold be number'
+							for(int i=0;i<id_arr->length();++i){
 								id=id_arr->getLong(i);
+								if(p=data->search(id)){
+									if(send(p->fd,content,strlen(content),MSG_NOSIGNAL)<0){
+										p->mutex_unlock();
+										data->remove(id);
+										log->printf("(id:%ld) push failed,broken link\n",id);
+									}else{
+										p->mutex_unlock();
+										log->printf("(id:%ld) push success\n",id);
+									}
+								}
 							}
 						break;
 						default:
@@ -83,11 +89,16 @@ void *read_thread(void * arg){
 					}
 				}catch(std::runtime_error err){
 					close(sockfd);
-					log->printf("json error:%s\n",err.what());
+					log->printf("read thread, json error:%s\n",err.what());
 				}
 			}
 		}
 	}
+}
+
+
+void *read_client_thread(void * arg){
+
 }
 
 
@@ -177,9 +188,10 @@ void *push_request(void * arg){
 int main(int argc,char *argv[]){
 	daemonize("push_server");
 
-	pthread_t tid_accept,tid_read;
+	pthread_t tid_accept,tid_read,tid_read_client;
 	rb_tree data;
 	int epollfd=epoll_create1(0);
+	int epollfd_client=epoll_create1(0);
 
 
 	char *path=getcwd(NULL,0);
@@ -190,7 +202,7 @@ int main(int argc,char *argv[]){
 	delete path;
 
 
-	common_data c_data={&data,&log,epollfd};
+	common_data c_data={&data,&log,epollfd,epollfd_client};
 
 	if(pthread_create(&tid_accept,NULL,accept_thread,&c_data)==0){
 		log.printf("create accept thread success\n");
@@ -206,8 +218,16 @@ int main(int argc,char *argv[]){
 		syslog(LOG_ERR,"create read thread failed\n");
 	}
 
+	if(pthread_create(&tid_read_client,NULL,read_client_thread,&c_data)==0){
+		log.printf("create read client thread success\n");
+	}else{
+		log.printf("create read thread failed\n");
+		syslog(LOG_ERR,"create read client thread failed\n");
+	}
+
 	log.flush();
 
 	pthread_join(tid_accept,NULL);
 	pthread_join(tid_read,NULL);
+	pthread_join(tid_read_client,NULL);
 }

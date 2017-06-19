@@ -66,6 +66,7 @@ struct common_data{
 	rb_tree *data;
 	log *log;
 	int epollfd;
+    int epollfd_client;
 };
 
 struct KeepConfig {
