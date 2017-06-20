@@ -1,16 +1,16 @@
 #include "push.h"
 
-//============================log===================================
-log::log(const char *path){
-	char *pathname=new char[strlen(path)+4]();
+//============================Log===================================
+Log::Log(const char *path){
+	char *pathname=new char[strlen(path)+5]();
 	strcpy(pathname,path);
-	file=fopen(strcat(pathname,"log"),"a");
+	file=fopen(strcat(pathname,"/log"),"a");
 	delete pathname;
 }
 
-log::~log(){fclose(file);}
+Log::~Log(){fclose(file);}
 
-void log::printf(const char *format,...){
+void Log::printf(const char *format,...){
 	time(&t);
 	tmp=localtime(&t);
 	strftime(buff,20,"%F %T",tmp);
@@ -23,7 +23,7 @@ void log::printf(const char *format,...){
 	fflush(file);
 }
 
-void log::flush(){
+void Log::flush(){
 	fflush(file);
 }
 

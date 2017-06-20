@@ -34,10 +34,10 @@
 
 
 
-class log{
+class Log{
 public:
-	log(const char *path);
-	~log();
+	Log(const char *path);
+	~Log();
 	void printf(const char *format,...);
 	void flush();
 private:
@@ -64,7 +64,7 @@ public:
 
 struct common_data{
 	rb_tree *data;
-	log *logger;
+	Log *logger;
 	int epollfd;
     int epollfd_client;
 };

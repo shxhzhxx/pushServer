@@ -20,4 +20,4 @@ rb_tree.o:rb_tree.cpp rb_tree.h
 .PHONY : clean
 clean:
 	rm -f $(out) $(obj)
-	rm -f push_log.log
+	rm -f log
