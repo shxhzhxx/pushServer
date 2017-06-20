@@ -64,7 +64,7 @@ public:
 
 struct common_data{
 	rb_tree *data;
-	log *log;
+	log *logger;
 	int epollfd;
     int epollfd_client;
 };
