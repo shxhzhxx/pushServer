@@ -48,7 +48,14 @@ void *read_thread(void * arg){
 			syslog(LOG_ERR,"epoll wait error. errno:%d\n",errno);
 		}else{
 			sockfd=events[0].data.fd;
-			if((len=read(sockfd,buff,MAX_MESSAGE_SIZE))<=0){
+			len=0;
+			if(read(sockfd,&len,4)!=4){
+				logger->printf("socket(%d) read len failed\n", sockfd);
+				close(sockfd);
+			} else if(len>=MAX_MESSAGE_SIZE){
+				logger->printf("socket(%d) len(%d) >= %d\n", sockfd,len,MAX_MESSAGE_SIZE);
+				close(sockfd);
+			}else if(recv(sockfd,buff,len,MSG_WAITALL)<=0){
 				logger->printf("socket(%d) read failed\n", sockfd);
 				close(sockfd);
 			}else{
@@ -65,7 +72,7 @@ void *read_thread(void * arg){
 							syslog(LOG_ERR,"(id:%ld) send bind response failed\n", id);
 						}else{
 							p->mutex_unlock();
-							logger->printf("(id:%ld) bind success\n", id);
+							// logger->printf("(id:%ld) bind success\n", id);
 							ev.data.u64=id;
 							if(epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, NULL)==-1){
 								data->remove(id);
@@ -80,19 +87,20 @@ void *read_thread(void * arg){
 						p=0;
 					}else if(cmd==2){//push
 						buff[len]=0;
-						logger->printf("push request:%s\n",buff);
+						// logger->printf("push request:%s\n",buff);
 						jsonArray *id_arr=json.getJsonArray("ids");
 						const char *content=json.getString("content");
+						len=strlen(content);
 						for(int i=0;i<id_arr->length();++i){
 							id=id_arr->getLong(i);
 							if(p=(client *)data->search(id)){
-								if(send(p->fd,content,strlen(content),MSG_NOSIGNAL)<0){
+								if(send(p->fd,&len,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
 									p->mutex_unlock();
 									data->remove(id);
 									logger->printf("(id:%ld) push failed,broken link\n",id);
 								}else{
 									p->mutex_unlock();
-									logger->printf("(id:%ld) push success\n",id);
+									// logger->printf("(id:%ld) push success\n",id);
 								}
 							}
 						}
@@ -130,31 +138,40 @@ void *read_client_thread(void * arg){
 			if(!(p=(client *)data->search(id))){
 				continue;
 			}
-			if((len=read(p->fd,buff,MAX_MESSAGE_SIZE))<=0){
+			len=0;
+			if(read(p->fd,&len,4)!=4){
+				logger->printf("client(%ld) read len failed\n", id);
 				p->mutex_unlock();
 				data->remove(id);
-				logger->printf("read client(%ld) error\n", id);
-				syslog(LOG_ERR,"read client(%ld) error\n", id);
+			} else if(len>=MAX_MESSAGE_SIZE){
+				logger->printf("client(%ld) len(%d) >= %d\n", id,len,MAX_MESSAGE_SIZE);
+				p->mutex_unlock();
+				data->remove(id);
+			}else if(recv(p->fd,buff,len,MSG_WAITALL)<=0){
+				logger->printf("client(%ld) read failed\n", id);
+				p->mutex_unlock();
+				data->remove(id);
 			}else{
 				p->mutex_unlock();
+				buff[len]=0;
+				// logger->printf("read client(%ld):%s\n",id,buff);
 				try{
 					jsonObject json(buff,len);
 					int cmd=json.getInt("cmd");
 					if(cmd==2){//push
-						buff[len]=0;
-						logger->printf("push request:%s\n",buff);
 						jsonArray *id_arr=json.getJsonArray("ids");
 						const char *content=json.getString("content");
+						len=strlen(content);
 						for(int i=0;i<id_arr->length();++i){
 							long t_id=id_arr->getLong(i);
 							if(p=(client *)data->search(t_id)){
-								if(send(p->fd,content,strlen(content),MSG_NOSIGNAL)<0){
+								if(send(p->fd,&len,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
 									p->mutex_unlock();
 									data->remove(t_id);
 									logger->printf("(id:%ld) push failed,broken link\n",t_id);
 								}else{
 									p->mutex_unlock();
-									logger->printf("(id:%ld) push success\n",t_id);
+									// logger->printf("(id:%ld) push success\n",t_id);
 								}
 							}
 						}
@@ -182,7 +199,7 @@ int main(int argc,char *argv[]){
 	if(path==NULL){
 		return -1;
 	}
-	Log logger("/home/shxhzhxx/code/github/pushServer");
+	Log logger(path);
 	delete path;
 
 	pthread_t tid_accept,tid_read,tid_read_client;

@@ -166,8 +166,8 @@ int daemonize(const char *cmd){
 
 	//change the current working directory to the root so
 	//we won't prevent file systems from being unmounted.
-	if(chdir("/")<0)
-		return -1;
+	// if(chdir("/")<0)
+	// 	return -1;
 
 	//close all open file descriptors.
 	if(rl.rlim_max==RLIM_INFINITY)
