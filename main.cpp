@@ -176,14 +176,14 @@ void *read_client_thread(void * arg){
 
 
 int main(int argc,char *argv[]){
+	daemonize("push_server");
+
 	char *path=getcwd(NULL,0);
 	if(path==NULL){
 		return -1;
 	}
-	Log logger(path);
+	Log logger("/home/shxhzhxx/code/github/pushServer");
 	delete path;
-
-	daemonize("push_server");
 
 	pthread_t tid_accept,tid_read,tid_read_client;
 	rb_tree data;
