@@ -3,7 +3,7 @@
 
 
 void *accept_thread(void *arg){
-	int epollfd_bind=((common_data *)arg)->epollfd_bind;
+	int epollfd=((common_data *)arg)->epollfd;
 	log *log=((common_data *)arg)->log;
 	int servfd,sockfd;
 	struct epoll_event ev;
@@ -17,7 +17,7 @@ void *accept_thread(void *arg){
 		while((sockfd=accept(servfd,NULL,NULL))>=0){
 			set_tcp_keepalive_cfg(sockfd, &cfg);
 			ev.data.fd = sockfd;
-			if(epoll_ctl(epollfd_bind, EPOLL_CTL_ADD, sockfd, &ev)==-1){
+			if(epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev)==-1){
 				log->printf("add socket to epollfd failed. errno:%d\n",errno);
 				syslog(LOG_ERR,"add socket to epollfd failed. errno:%d\n",errno);
 			}
@@ -33,25 +33,29 @@ void *read_thread(void * arg){
 	rb_tree *data=((common_data *)arg)->data;
 
 	int epollfd=((common_data *)arg)->epollfd;
+	int epollfd_client=((common_data *)arg)->epollfd_client;
 	int sockfd,len;
 	char buff[MAX_MESSAGE_SIZE];
 	long id;
 	client *p=0;
-	struct epoll_event ev[1];
+	struct epoll_event events[1];
+	struct epoll_event ev;
+	ev.events = EPOLLIN;
 
 	for(;;){
-		if(epoll_wait(epollfd_bind, ev, 1, -1)<1){
+		if(epoll_wait(epollfd, events, 1, -1)<1){
 			log->printf("epoll wait error. errno:%d\n",errno);
 			syslog(LOG_ERR,"epoll wait error. errno:%d\n",errno);
 		}else{
-			sockfd=ev[0].data.fd;
+			sockfd=events[0].data.fd;
 			if((len=read(sockfd,buff,MAX_MESSAGE_SIZE))<=0){
-				log->printf("socket read -1\n", sockfd);
+				log->printf("socket(%d) read failed\n", sockfd);
 				close(sockfd);
 			}else{
 				try{
 					jsonObject json(buff,len);
-					switch(json.getInt("cmd")){
+					int cmd=json.getInt("cmd");
+					switch(cmd){
 						case 1: //bind
 							id=json.getLong("id");
 							data->insert(id,(p=new client(id,sockfd)));
@@ -59,9 +63,20 @@ void *read_thread(void * arg){
 								p->mutex_unlock();
 								data->remove(id);
 								log->printf("(id:%ld) send bind response failed\n", id);
+								syslog(LOG_ERR,"(id:%ld) send bind response failed\n", id);
 							}else{
 								p->mutex_unlock();
 								log->printf("(id:%ld) bind success\n", id);
+								ev.data.uint64_t=id;
+								if(epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, NULL)==-1){
+									data->remove(id);
+									log->printf("remove client(%ld) from epollfd failed. errno:%d\n",id,errno);
+									syslog(LOG_ERR,"remove client(%ld) from epollfd failed. errno:%d\n",id,errno);
+								}else if(epoll_ctl(epollfd_client, EPOLL_CTL_ADD, sockfd, &ev)==-1){
+									data->remove(id);
+									log->printf("add client(%ld) to epollfd_client failed. errno:%d\n",id,errno);
+									syslog(LOG_ERR,"add client(%ld) to epollfd_client failed. errno:%d\n",id,errno);
+								}
 							}
 							p=0;
 						break;
@@ -85,11 +100,13 @@ void *read_thread(void * arg){
 							}
 						break;
 						default:
+							log->printf("socket(%ld) unknown cmd:\n", sockfd,cmd);
+							syslog(LOG_ERR,"socket(%ld) unknown cmd:\n", sockfd,cmd);
 							close(sockfd);
 					}
 				}catch(std::runtime_error err){
 					close(sockfd);
-					log->printf("read thread, json error:%s\n",err.what());
+					log->printf("socket(%ld), json error:%s\n",sockfd,err.what());
 				}
 			}
 		}
@@ -98,7 +115,67 @@ void *read_thread(void * arg){
 
 
 void *read_client_thread(void * arg){
+	log *log=((common_data *)arg)->log;
+	rb_tree *data=((common_data *)arg)->data;
 
+	int epollfd_client=((common_data *)arg)->epollfd_client;
+	int len;
+	char buff[MAX_MESSAGE_SIZE];
+	long id;
+	client *p=0;
+	struct epoll_event ev[1];
+	for(;;){
+		if(epoll_wait(epollfd_client, ev, 1, -1)<1){
+			log->printf("epollfd_client wait error. errno:%d\n",errno);
+			syslog(LOG_ERR,"epollfd_client wait error. errno:%d\n",errno);
+		}else{
+			id=ev[0].data.uint64_t;
+			if(!(p=data->search(id))){
+				continue;
+			}
+			if((len=read(p->fd,buff,MAX_MESSAGE_SIZE))<=0){
+				p->mutex_unlock();
+				data->remove(id);
+				log->printf("read client(%ld) error\n", id);
+				syslog(LOG_ERR,"read client(%ld) error\n", id);
+			}else{
+				p->mutex_unlock();
+				try{
+					jsonObject json(buff,len);
+					int cmd=json.getInt("cmd");
+					switch(cmd){
+						case 2: //push
+							buff[len]=0;
+							log->printf("push request:%s\n",buff);
+							jsonArray *id_arr=json.getJsonArray("ids");
+							const char *content=json.getString("content");
+							for(int i=0;i<id_arr->length();++i){
+								long t_id=id_arr->getLong(i);
+								if(p=data->search(t_id)){
+									if(send(p->fd,content,strlen(content),MSG_NOSIGNAL)<0){
+										p->mutex_unlock();
+										data->remove(t_id);
+										log->printf("(id:%ld) push failed,broken link\n",t_id);
+									}else{
+										p->mutex_unlock();
+										log->printf("(id:%ld) push success\n",t_id);
+									}
+								}
+							}
+						break;
+						default:
+							data->remove(id);
+							log->printf("client(%ld) unknown cmd:\n", id,cmd);
+							syslog(LOG_ERR,"client(%ld) unknown cmd:\n", id,cmd);
+					}
+				}catch(std::runtime_error err){
+					data->remove(id);
+					log->printf("client(%ld), json error:%s\n",id,err.what());
+					syslog(LOG_ERR,"client(%ld), json error:%s\n",id,err.what());
+				}
+			}
+		}
+	}
 }
 
 
