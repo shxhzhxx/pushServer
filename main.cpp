@@ -49,14 +49,16 @@ void *read_thread(void * arg){
 		}else{
 			sockfd=events[0].data.fd;
 			len=0;
+			int recv_len=0;
 			if(read(sockfd,&len,4)!=4){
 				logger->printf("socket(%d) read len failed\n", sockfd);
 				close(sockfd);
 			} else if(len>=MAX_MESSAGE_SIZE){
 				logger->printf("socket(%d) len(%d) >= %d\n", sockfd,len,MAX_MESSAGE_SIZE);
 				close(sockfd);
-			}else if(recv(sockfd,buff,len,MSG_WAITALL)<=0){
-				logger->printf("socket(%d) read failed\n", sockfd);
+			}else if((recv_len=read(sockfd,buff,len))!=len){
+				buff[recv_len]=0;
+				logger->printf("socket(%d) read failed:%s\n", sockfd,buff);
 				close(sockfd);
 			}else{
 				try{
@@ -72,7 +74,7 @@ void *read_thread(void * arg){
 							syslog(LOG_ERR,"(id:%ld) send bind response failed\n", id);
 						}else{
 							p->mutex_unlock();
-							// logger->printf("(id:%ld) bind success\n", id);
+							logger->printf("(id:%ld) bind success\n", id);
 							ev.data.u64=id;
 							if(epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, NULL)==-1){
 								data->remove(id);
@@ -139,16 +141,18 @@ void *read_client_thread(void * arg){
 				continue;
 			}
 			len=0;
-			if(read(p->fd,&len,4)!=4){
-				logger->printf("client(%ld) read len failed\n", id);
+			int recv_len=0;
+			if((recv_len=read(p->fd,&len,4))!=4){
+				logger->printf("client(%ld) read len failed:%d\n", id,recv_len);
 				p->mutex_unlock();
 				data->remove(id);
 			} else if(len>=MAX_MESSAGE_SIZE){
 				logger->printf("client(%ld) len(%d) >= %d\n", id,len,MAX_MESSAGE_SIZE);
 				p->mutex_unlock();
 				data->remove(id);
-			}else if(recv(p->fd,buff,len,MSG_WAITALL)<=0){
-				logger->printf("client(%ld) read failed\n", id);
+			}else if((recv_len=read(p->fd,buff,len))!=len){
+				buff[recv_len]=0;
+				logger->printf("client(%ld) read failed:%s\n", id,buff);
 				p->mutex_unlock();
 				data->remove(id);
 			}else{

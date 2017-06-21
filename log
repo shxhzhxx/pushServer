@@ -1,0 +1,8 @@
+2017-06-20 21:39:18 create accept thread success
+2017-06-20 21:39:18 create read thread success
+2017-06-20 21:39:18 create read client thread success
+2017-06-20 21:39:18 initial accept socket success
+2017-06-20 21:39:36 (id:2) bind success
+2017-06-20 21:39:36 (id:1) bind success
+2017-06-20 21:39:41 client(2) read failed:{"content":"bbb","ids":[1],"cmd"
+2017-06-20 21:39:49 client(1) read len failed:0
