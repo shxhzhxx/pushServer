@@ -49,8 +49,6 @@ private:
 };
 
 
-
-
 class client : public satellite {
 public:
     client(long id,int fd);
@@ -60,12 +58,34 @@ public:
     int fd;
 };
 
+class list_item {
+public:
+	list_item(long timestamp,long data);
+	
+	long timestamp;
+	long data;
+	list_item *prev;
+    list_item *next;
+};
 
+class linked_list {
+public:
+    linked_list();
+    ~linked_list();
+	void append(long data);
+    list_item *pop();
+    list_item *get(long data);
+    
+private:
+	list_item *item_f;
+    list_item *item_l;
+    pthread_mutex_t *mutex;
+};
 
 struct common_data{
 	rb_tree *data;
 	Log *logger;
-	int epollfd;
+	int epollfd_socket;
     int epollfd_client;
 };
 

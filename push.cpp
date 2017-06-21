@@ -36,11 +36,77 @@ client::~client() {
 	close(fd);
 }
 
+//============================list_item===================================
+list_item::list_item(long _time,long _data):timestamp(_time),data(_data){}
 
+//============================linked_list===================================
+
+linked_list::linked_list(){
+	mutex = new pthread_mutex_t();
+	pthread_mutex_init(mutex,NULL);
+}
+linked_list::~linked_list(){
+	pthread_mutex_destroy(mutex);
+    delete mutex;
+}
+void linked_list::append(long data){
+	pthread_mutex_lock(mutex);
+	list_item *item=new list_item(getCurrentTime(),data);
+	if(item_l){
+		item_l->next=item;
+		item->prev=item_l;
+		item_l=item_l->next;
+	}else{
+		item_f=item;
+		item_l=item;
+	}
+	pthread_mutex_unlock(mutex);
+}
+list_item *linked_list::pop(){
+	pthread_mutex_lock(mutex);
+	list_item *ret=0;
+	if(item_f){
+		ret=item_f;
+		if(item_f==item_l){
+			item_l=0;
+		}
+		item_f=item_f->next;
+		if(item_f){
+			item_f->prev=0;
+		}
+		ret->next=0;
+	}
+	pthread_mutex_unlock(mutex);
+	return ret;
+}
+list_item *linked_list::get(long data){
+	pthread_mutex_lock(mutex);
+	list_item *p=item_f;
+	while(p){
+		if(p->data==data){
+			if(p->prev){
+				p->prev->next=p->next;
+			}else{
+				item_f=p->next;
+			}
+			if(p->next){
+				p->next->prev=p->prev;
+			}else{
+				item_l=p->prev;
+			}
+			p->next=0;
+			pthread_mutex_unlock(mutex);
+			return p;
+		}
+		p=p->next;
+	}
+	pthread_mutex_unlock(mutex);
+	return NULL;
+}
 
 //============================function===================================
 long getCurrentTime(){
-   struct timeval tv;   
+   struct timeval tv;
    gettimeofday(&tv,NULL);
    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
