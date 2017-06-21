@@ -209,7 +209,9 @@ int main(int argc,char *argv[]){
 	pthread_t tid_accept,tid_read,tid_read_client;
 	rb_tree data;
 	int epollfd=epoll_create1(0);
+	int epollfd_et=epoll_create1(0);
 	int epollfd_client=epoll_create1(0);
+	int epollfd_client_et=epoll_create1(0);
 
 	common_data c_data={&data,&logger,epollfd,epollfd_client};
 
