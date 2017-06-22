@@ -62,6 +62,15 @@ void linked_list::append(long data){
 	}
 	pthread_mutex_unlock(mutex);
 }
+void linked_list::append_to_head(list_item *item){
+	pthread_mutex_lock(mutex);
+	item->next=item_f;
+	if(item_f){
+		item_f->prev=item;
+	}
+	item_f=item;
+	pthread_mutex_unlock(mutex);
+}
 list_item *linked_list::pop(){
 	pthread_mutex_lock(mutex);
 	list_item *ret=0;

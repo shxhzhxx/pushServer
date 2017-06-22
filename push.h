@@ -31,6 +31,7 @@
 
 #define SERVER_PORT "3889"
 #define MAX_MESSAGE_SIZE 1024
+#define READ_TIME_OUT 1000
 
 
 
@@ -73,6 +74,7 @@ public:
     linked_list();
     ~linked_list();
 	void append(long data);
+    void append_to_head(list_item *item);
     list_item *pop();
     list_item *get(long data);
     
@@ -86,7 +88,11 @@ struct common_data{
 	rb_tree *data;
 	Log *logger;
 	int epollfd_socket;
+    int epollfd_socket_et;
     int epollfd_client;
+    int epollfd_client_et;
+    linked_list *list_socket;
+    linked_list *list_client;
 };
 
 struct KeepConfig {
@@ -128,7 +134,3 @@ int initTcpServer(const char * port);
 int initTcpClient(const char *ip,const char *port);
 
 int daemonize(const char *cmd);
-
-int char_t_int(char *buff);
-
-long char_t_long(char *long);
