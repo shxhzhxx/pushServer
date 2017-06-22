@@ -128,3 +128,7 @@ int initTcpServer(const char * port);
 int initTcpClient(const char *ip,const char *port);
 
 int daemonize(const char *cmd);
+
+int char_t_int(char *buff);
+
+long char_t_long(char *long);

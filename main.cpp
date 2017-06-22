@@ -1,9 +1,10 @@
 #include "json.h"
 #include "push.h"
+#include <sys/ioctl.h>
 
 
 void *accept_tcp(void *arg){
-	int epollfd=((common_data *)arg)->epollfd;
+	int epollfd_socket=((common_data *)arg)->epollfd_socket;
 	Log *logger=((common_data *)arg)->logger;
 	int servfd,sockfd;
 	struct epoll_event ev;
@@ -16,7 +17,7 @@ void *accept_tcp(void *arg){
 		while((sockfd=accept(servfd,NULL,NULL))>=0){
 			set_tcp_keepalive_cfg(sockfd, &cfg);
 			ev.data.fd = sockfd;
-			if(epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev)==-1){
+			if(epoll_ctl(epollfd_socket, EPOLL_CTL_ADD, sockfd, &ev)==-1){
 				logger->printf("add socket to epollfd failed. errno:%d\n",errno);
 			}
 		}
@@ -29,11 +30,10 @@ void *read_socket(void * arg){
 	Log *logger=((common_data *)arg)->logger;
 	rb_tree *data=((common_data *)arg)->data;
 
-	int epollfd_socket=((common_data *)arg)->epollfd_socket;
-	int epollfd_client=((common_data *)arg)->epollfd_client;
-	int sockfd,len;
-	char buff[4+MAX_MESSAGE_SIZE];  //prefix(4) + msg
-	long id;
+	unsigned int epollfd_socket=((common_data *)arg)->epollfd_socket;
+	unsigned int epollfd_client=((common_data *)arg)->epollfd_client;
+	char buff[4+MAX_MESSAGE_SIZE];
+	char ack_ok[7]={0,0,0,3,'2','0','0'};
 	client *p=0;
 	struct epoll_event events[1];
 	struct epoll_event ev;
@@ -43,25 +43,56 @@ void *read_socket(void * arg){
 		if(epoll_wait(epollfd_socket, events, 1, -1)<1){
 			logger->printf("epoll wait error. errno:%d\n",errno);
 		}else{
-			sockfd=events[0].data.fd;
-			len=0;
-			if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
+			unsigned int sockfd=events[0].data.fd;
+			unsigned int len,d_len;
+			if(recv(sockfd,&d_len,4,MSG_DONTWAIT|MSG_PEEK)!=4){ //check whether data is ready for process
 				//...
-			} else if(len>MAX_MESSAGE_SIZE){
-				logger->printf("read socket(%d) len(%d) > %d\n", sockfd,len,MAX_MESSAGE_SIZE);
+			} else if(d_len>MAX_MESSAGE_SIZE){
+				logger->printf("read socket(%d) len(%d) > %d\n", sockfd,d_len,MAX_MESSAGE_SIZE);
 				close(sockfd);
-			}else if(recv(sockfd,buff,len+4,MSG_DONTWAIT|MSG_PEEK)!=len+4){
+			}else if(ioctl(sockfd,FIONREAD,&len)==-1){
+				logger->printf("ioctl failed\n");
+				close(sockfd);
+			}else if(len!=d_len+4){
 				//...
-			}else{
-				recv(sockfd,&len,4,MSG_DONTWAIT);
-				len=recv(sockfd,buff,len,MSG_DONTWAIT);
+			}else if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
+				close(sockfd);
+			}else{ //start process
+				unsigned char cmd=buff[4];
+				if(cmd==1){//bind
+					if(len!=13){
+						close(sockfd);
+					}else{
+						unsigned long id=char_t_long(buff+5);
+						data->insert(id,(p=new client(id,sockfd)));
+						if(send(sockfd,ack_ok,7,MSG_NOSIGNAL)<0){
+							p->mutex_unlock();
+							data->remove(id);
+							logger->printf("(id:%ld) send bind response failed\n", id);
+						}else{
+							p->mutex_unlock();
+							logger->printf("(id:%ld) bind success\n", id);
+							ev.data.u64=id;
+							if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1){
+								data->remove(id);
+								logger->printf("remove client(%ld) from epollfd failed. errno:%d\n",id,errno);
+							}else if(epoll_ctl(epollfd_client, EPOLL_CTL_ADD, sockfd, &ev)==-1){
+								data->remove(id);
+								logger->printf("add client(%ld) to epollfd_client failed. errno:%d\n",id,errno);
+							}
+						}
+						p=0;
+					}
+				}else if(cmd==2){//push
+
+				}
 				try{
 					jsonObject json(buff,len);
 					int cmd=json.getInt("cmd");
 					if(cmd==1){//bind
 						id=json.getLong("id");
 						data->insert(id,(p=new client(id,sockfd)));
-						if(send(sockfd,&3,4,MSG_NOSIGNAL)<0 || send(sockfd,"200",3,MSG_NOSIGNAL)<0){
+						if(send(sockfd,"200",3,MSG_NOSIGNAL)<0){
 							p->mutex_unlock();
 							data->remove(id);
 							logger->printf("(id:%ld) send bind response failed\n", id);
@@ -225,7 +256,7 @@ int main(int argc,char *argv[]){
 
 	logger.flush();
 
-	pthread_join(tid_accept,NULL);
+	pthread_join(tid_accept_tcp,NULL);
 	pthread_join(tid_read_socket,NULL);
 	pthread_join(tid_read_client,NULL);
 }
