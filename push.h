@@ -135,6 +135,4 @@ int initTcpClient(const char *ip,const char *port);
 
 int daemonize(const char *cmd);
 
-unsigned long ntohll(unsigned long l);
-
-unsigned long htonll(unsigned long l);
+unsigned long ntohl64(char *buff);

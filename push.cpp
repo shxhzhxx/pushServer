@@ -262,3 +262,8 @@ int daemonize(const char *cmd){
 		exit(1);
 	}
 }
+
+unsigned long ntohl64(char *buff){
+	return (unsigned long)buff[7] | ((unsigned long)buff[6] << 8) | ((unsigned long)buff[5] << 16) | ((unsigned long)buff[4] << 24) |
+		((unsigned long)buff[3] << 32) | ((unsigned long)buff[2] << 40) |((unsigned long)buff[1] << 48) |((unsigned long)buff[0] << 56);
+}
