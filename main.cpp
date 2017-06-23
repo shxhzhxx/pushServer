@@ -36,7 +36,7 @@ void *read_socket(void * arg){
 	int epollfd_client=((common_data *)arg)->epollfd_client;
 	linked_list *list_socket=((common_data *)arg)->list_socket;
 	char buff[MAX_MESSAGE_SIZE];
-	char ack_ok[7]={0,0,0,3,'2','0','0'};
+	char ack_ok[7]={0,0,0,7,'2','0','0'};
 	client *p=0;
 	unsigned long id;
 	unsigned int len,num,sockfd;
@@ -119,11 +119,11 @@ void *read_socket(void * arg){
 					}else{
 						const char *content=buff+9+num*8;
 						len-=9+num*8;
-						int len_data=htonl(len);
+						int len_send=htonl(len+4);
 						for(int i=0;i<num;++i){
 							id=ntohl64(buff+9+8*i);
 							if(p=(client *)data->search(id)){
-								if(send(p->fd,&len_data,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
+								if(send(p->fd,&len_send,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
 									p->mutex_unlock();
 									data->remove(id);
 									logger->printf("(id:%ld) push failed,broken link\n",id);
