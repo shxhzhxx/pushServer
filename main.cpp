@@ -224,6 +224,7 @@ void *read_client(void * arg){
 		if(!(p=(client *)data->search(id))){
 			continue;
 		}
+		printf("debug 1 fd:%d\n",p->fd);
 		if(recv(p->fd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 			ev.data.u64=id;
 			ev.events=EPOLLIN|EPOLLET;
@@ -238,6 +239,7 @@ void *read_client(void * arg){
 			continue;
 		}
 		len_d=ntohl(len_d);
+		printf("debug 2 fd:%d\n",p->fd);
 		if(len_d>MAX_MESSAGE_SIZE){
 			p->mutex_unlock();
 			data->remove(id);
@@ -258,9 +260,14 @@ void *read_client(void * arg){
 				list_client->append(id);
 			}
 		}else if(recv(p->fd,buff,len,MSG_DONTWAIT)!=len){
+			printf("debug k1\n");
+			printf("debug 3 fd:%d\n",p->fd);
 			p->mutex_unlock();
+			printf("debug k2\n");
 			data->remove(id);
+			printf("debug k3\n");
 			logger->printf("read client len!=%d\n",len);
+			printf("debug k4\n");
 		}else{
 			//start process
 			unsigned char cmd=buff[4];

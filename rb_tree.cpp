@@ -15,7 +15,9 @@ int satellite::mutex_trylock() { return pthread_mutex_trylock(mutex); }
 
 void satellite::mutex_lock() { pthread_mutex_lock(mutex); }
 
-void satellite::mutex_unlock() { pthread_mutex_unlock(mutex); }
+void satellite::mutex_unlock() {
+    pthread_mutex_unlock(mutex); 
+}
 
 
 //============================node===================================
