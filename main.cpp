@@ -320,18 +320,18 @@ void *read_client_et(void * arg){
 				}
 				continue;
 			}
-			list_socket->append_to_head(item);
+			list_client->append_to_head(item);
 		}
 		if(epoll_wait(epollfd_client_et,events,1,wait_time)<1){
 			continue;
 		}else{
 			id=events[0].data.u64;
-			delete list_socket->get(id);
+			delete list_client->get(id);
 			if(!(p=(client *)data->search(id))){
 				continue;
 			}
 			if(recv(p->fd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
-				list_socket->append(id);
+				list_client->append(id);
 				p->mutex_unlock();
 			} else if(len_d>MAX_MESSAGE_SIZE){
 				p->mutex_unlock();
@@ -342,14 +342,14 @@ void *read_client_et(void * arg){
 				data->remove(id);
 				logger->printf("ioctl failed\n");
 			}else if(len<len_d+4){
-				list_socket->append(id);
+				list_client->append(id);
 				p->mutex_unlock();
 			}else{//client is ready for process
 				ev.data.u64=id;
 				if(epoll_ctl(epollfd_client_et, EPOLL_CTL_DEL, p->fd, NULL)==-1 || epoll_ctl(epollfd_client, EPOLL_CTL_ADD, p->fd, &ev)==-1){
 					p->mutex_unlock();
 					data->remove(id);
-					logger->printf("move socket(%d) from epollfd_socket_et to epollfd_socket failed. errno:%d\n",sockfd,errno);
+					logger->printf("move client(%ld) from epollfd_client_et to epollfd_client failed. errno:%d\n",id,errno);
 				}else{
 					p->mutex_unlock();
 				}
