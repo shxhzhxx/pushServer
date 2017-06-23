@@ -297,7 +297,7 @@ void *read_client(void * arg){
 									logger->printf("(id:%ld) push failed,broken link\n",id);
 								}else{
 									p->mutex_unlock();
-									// logger->printf("(id:%ld) push success\n",id);
+									logger->printf("(id:%ld) push success\n",id);
 								}
 							}
 						}
