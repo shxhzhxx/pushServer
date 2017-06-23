@@ -35,11 +35,11 @@ void *read_socket(void * arg){
 	int epollfd_socket_et=((common_data *)arg)->epollfd_socket_et;
 	int epollfd_client=((common_data *)arg)->epollfd_client;
 	linked_list *list_socket=((common_data *)arg)->list_socket;
-	char buff[4+MAX_MESSAGE_SIZE];
+	char buff[MAX_MESSAGE_SIZE];
 	char ack_ok[7]={0,0,0,3,'2','0','0'};
 	client *p=0;
 	unsigned long id;
-	unsigned int len,len_d,num,sockfd;
+	unsigned int len,num,sockfd;
 	struct epoll_event events[1];
 	struct epoll_event ev;
 
@@ -50,7 +50,7 @@ void *read_socket(void * arg){
 		}
 		sockfd=events[0].data.fd;
 		//check whether data is ready for process
-		if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
+		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 			ev.data.fd=sockfd;
 			ev.events=EPOLLIN|EPOLLET;
 			if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket_et, EPOLL_CTL_ADD, sockfd, &ev)==-1){
@@ -61,14 +61,15 @@ void *read_socket(void * arg){
 			}
 			continue;
 		}
-		len_d=ntohl(len_d);
-		if(len_d>MAX_MESSAGE_SIZE){
+		len=ntohl(len);
+		int len_recv;
+		if(len>MAX_MESSAGE_SIZE || len<5){
 			close(sockfd);
-			logger->printf("read socket(%d) len(%d) > %d\n", sockfd,len_d,MAX_MESSAGE_SIZE);
-		}else if(ioctl(sockfd,FIONREAD,&len)==-1){
+			logger->printf("read socket(%d) len(%d) out of range(5-%d)\n", sockfd,len,MAX_MESSAGE_SIZE);
+		}else if(ioctl(sockfd,FIONREAD,&len_recv)==-1){
 			close(sockfd);
 			logger->printf("ioctl failed\n");
-		}else if(len<len_d+4){
+		}else if(len_recv<len){
 			ev.data.fd=sockfd;
 			ev.events=EPOLLIN|EPOLLET;
 			if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket_et, EPOLL_CTL_ADD, sockfd, &ev)==-1){
@@ -77,16 +78,16 @@ void *read_socket(void * arg){
 			}else{
 				list_socket->append(sockfd);
 			}
-		}else if(recv(sockfd,buff,len_d+4,MSG_DONTWAIT)!=len_d+4){
+		}else if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
 			close(sockfd);
-			logger->printf("read socket len!=%d\n",len_d+4);
+			logger->printf("read socket len!=%d\n",len+4);
 		}else{
 			//start process
 			unsigned char cmd=buff[4];
 			if(cmd==1){//bind
-				if(len_d!=9){
+				if(len!=13){
 					close(sockfd);
-					logger->printf("cmd 1 :len!=9\n");
+					logger->printf("cmd 1 :len!=13\n");
 				}else{
 					id=ntohl64(buff+5);
 					data->insert(id,(p=new client(id,sockfd)));
@@ -106,25 +107,30 @@ void *read_socket(void * arg){
 					}
 				}
 			}else if(cmd==2){//push
-				memcpy(&num,buff+5,4);
-				num=ntohl(num);
-				if(len_d<(5+num*8)){
+				if(len<9){
 					close(sockfd);
-					logger->printf("cmd 2 :len(%d) <%d\n", len_d,5+num*8);
+					logger->printf("cmd 2 :len<9\n");
 				}else{
-					const char *content=buff+9+num*8;
-					len_d-=5+num*8;
-					int len_n=htonl(len_d);
-					for(int i=0;i<num;++i){
-						id=ntohl64(buff+9+8*i);
-						if(p=(client *)data->search(id)){
-							if(send(p->fd,&len_n,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len_d,MSG_NOSIGNAL)<0){
-								p->mutex_unlock();
-								data->remove(id);
-								logger->printf("(id:%ld) push failed,broken link\n",id);
-							}else{
-								p->mutex_unlock();
-								logger->printf("(id:%ld) push success\n",id);
+					memcpy(&num,buff+5,4);
+					num=ntohl(num);
+					if(len<(9+num*8)){
+						close(sockfd);
+						logger->printf("cmd 2 :len(%d) <%d\n", len_d,9+num*8);
+					}else{
+						const char *content=buff+9+num*8;
+						len-=9+num*8;
+						int len_data=htonl(len);
+						for(int i=0;i<num;++i){
+							id=ntohl64(buff+9+8*i);
+							if(p=(client *)data->search(id)){
+								if(send(p->fd,&len_data,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
+									p->mutex_unlock();
+									data->remove(id);
+									logger->printf("(id:%ld) push failed,broken link\n",id);
+								}else{
+									p->mutex_unlock();
+									logger->printf("(id:%ld) push success\n",id);
+								}
 							}
 						}
 					}
@@ -143,7 +149,7 @@ void *read_socket_et(void *arg){
 	int epollfd_socket=((common_data *)arg)->epollfd_socket;
 	int epollfd_socket_et=((common_data *)arg)->epollfd_socket_et;
 	linked_list *list_socket=((common_data *)arg)->list_socket;
-	unsigned int len,len_d,sockfd;
+	unsigned int len,len_recv,sockfd;
 	list_item *item=0;
 	struct epoll_event events[1];
 	struct epoll_event ev;
@@ -159,9 +165,9 @@ void *read_socket_et(void *arg){
 				sockfd=item->data;
 				delete item;
 				ev.data.fd=sockfd;
-				if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4 || ntohl(len_d)>MAX_MESSAGE_SIZE || 
-						ioctl(sockfd,FIONREAD,&len)==-1 || len<ntohl(len_d)+4 || epoll_ctl(epollfd_socket_et, EPOLL_CTL_DEL, sockfd, NULL)==-1
-						|| epoll_ctl(epollfd_socket, EPOLL_CTL_ADD, sockfd, &ev)==-1){
+				if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4 || ntohl(len)>MAX_MESSAGE_SIZE || ntohl(len)<5 ||
+						ioctl(sockfd,FIONREAD,&len_recv)==-1 || len_recv<ntohl(len) || epoll_ctl(epollfd_socket_et, EPOLL_CTL_DEL, sockfd, NULL)==-1 || 
+						epoll_ctl(epollfd_socket, EPOLL_CTL_ADD, sockfd, &ev)==-1){
 					close(sockfd);
 				}
 				continue;
@@ -173,22 +179,22 @@ void *read_socket_et(void *arg){
 		}
 		sockfd=events[0].data.fd;
 		delete list_socket->get(sockfd);
-		if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)<0){
+		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)<0){
 			close(sockfd);
 			logger->printf("broken socket(%d)\n", sockfd);
 			continue;
-		}else if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
+		}else if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 			list_socket->append(sockfd);
 			continue;
 		}
-		len_d=ntohl(len_d);
-		if(len_d>MAX_MESSAGE_SIZE){
+		len=ntohl(len);
+		if(len>MAX_MESSAGE_SIZE || len<5){
 			close(sockfd);
-			logger->printf("read socket(%d) len(%d) > %d\n", sockfd,len_d,MAX_MESSAGE_SIZE);
-		}else if(ioctl(sockfd,FIONREAD,&len)==-1){
+			logger->printf("read socket(%d) len(%d) out of range(5-%d)\n", sockfd,len,MAX_MESSAGE_SIZE);
+		}else if(ioctl(sockfd,FIONREAD,&len_recv)==-1){
 			close(sockfd);
 			logger->printf("ioctl failed\n");
-		}else if(len<len_d+4){
+		}else if(len_recv<len){
 			list_socket->append(sockfd);
 		}else{//socket is ready for process
 			ev.data.fd=sockfd;
