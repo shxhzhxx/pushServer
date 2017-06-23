@@ -115,7 +115,7 @@ void *read_socket(void * arg){
 					num=ntohl(num);
 					if(len<(9+num*8)){
 						close(sockfd);
-						logger->printf("cmd 2 :len(%d) <%d\n", len_d,9+num*8);
+						logger->printf("cmd 2 :len(%d) <%d\n", len,9+num*8);
 					}else{
 						const char *content=buff+9+num*8;
 						len-=9+num*8;
@@ -248,7 +248,7 @@ void *read_client(void * arg){
 		if(len>MAX_MESSAGE_SIZE || len<5){
 			p->mutex_unlock();
 			data->remove(id);
-			logger->printf("read client(%ld) len(%d) out of range (5-%d) \n", id,len_d,MAX_MESSAGE_SIZE);
+			logger->printf("read client(%ld) len(%d) out of range (5-%d) \n", id,len,MAX_MESSAGE_SIZE);
 		}else if(ioctl(p->fd,FIONREAD,&len_recv)==-1){
 			p->mutex_unlock();
 			data->remove(id);
