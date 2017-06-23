@@ -77,16 +77,16 @@ void *read_socket(void * arg){
 			}else{
 				list_socket->append(sockfd);
 			}
-		}else if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
+		}else if(recv(sockfd,buff,len_d+4,MSG_DONTWAIT)!=len_d+4){
 			close(sockfd);
-			logger->printf("read socket len!=%d\n",len);
+			logger->printf("read socket len!=%d\n",len_d+4);
 		}else{
 			//start process
 			unsigned char cmd=buff[4];
 			if(cmd==1){//bind
-				if(len!=13){
+				if(len_d!=9){
 					close(sockfd);
-					logger->printf("cmd 1 :len!=13\n");
+					logger->printf("cmd 1 :len!=9\n");
 				}else{
 					id=ntohl64(buff+5);
 					data->insert(id,(p=new client(id,sockfd)));
@@ -108,17 +108,17 @@ void *read_socket(void * arg){
 			}else if(cmd==2){//push
 				memcpy(&num,buff+5,4);
 				num=ntohl(num);
-				if(len<(9+num*8)){
+				if(len_d<(5+num*8)){
 					close(sockfd);
-					logger->printf("cmd 2 :len(%d) <%d\n", len,9+num*8);
+					logger->printf("cmd 2 :len(%d) <%d\n", len_d,5+num*8);
 				}else{
 					const char *content=buff+9+num*8;
-					len-=9+num*8;
-					int len_n=htonl(len);
+					len_d-=5+num*8;
+					int len_n=htonl(len_d);
 					for(int i=0;i<num;++i){
 						id=ntohl64(buff+9+8*i);
 						if(p=(client *)data->search(id)){
-							if(send(p->fd,&len_n,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
+							if(send(p->fd,&len_n,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len_d,MSG_NOSIGNAL)<0){
 								p->mutex_unlock();
 								data->remove(id);
 								logger->printf("(id:%ld) push failed,broken link\n",id);
@@ -224,7 +224,6 @@ void *read_client(void * arg){
 		if(!(p=(client *)data->search(id))){
 			continue;
 		}
-		printf("debug 1 fd:%d\n",p->fd);
 		if(recv(p->fd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 			ev.data.u64=id;
 			ev.events=EPOLLIN|EPOLLET;
@@ -239,7 +238,6 @@ void *read_client(void * arg){
 			continue;
 		}
 		len_d=ntohl(len_d);
-		printf("debug 2 fd:%d\n",p->fd);
 		if(len_d>MAX_MESSAGE_SIZE){
 			p->mutex_unlock();
 			data->remove(id);
@@ -259,34 +257,29 @@ void *read_client(void * arg){
 				p->mutex_unlock();
 				list_client->append(id);
 			}
-		}else if(recv(p->fd,buff,len,MSG_DONTWAIT)!=len){
-			printf("debug k1\n");
-			printf("debug 3 fd:%d\n",p->fd);
+		}else if(recv(p->fd,buff,len_d+4,MSG_DONTWAIT)!=len_d+4){
 			p->mutex_unlock();
-			printf("debug k2\n");
 			data->remove(id);
-			printf("debug k3\n");
-			logger->printf("read client len!=%d\n",len);
-			printf("debug k4\n");
+			logger->printf("read client len!=%d\n",len_d+4);
 		}else{
 			//start process
 			unsigned char cmd=buff[4];
 			if(cmd==2){
 				memcpy(&num,buff+5,4);
 				num=ntohl(num);
-				if(len<(9+num*8)){
+				if(len_d<(5+num*8)){
 					p->mutex_unlock();
 					data->remove(id);
-					logger->printf("cmd 2 :len(%d) <%d\n", len,9+num*8);
+					logger->printf("cmd 2 :len(%d) <%d\n", len_d,5+num*8);
 				}else{
 					p->mutex_unlock();
 					const char *content=buff+9+num*8;
-					len-=9+num*8;
-					int len_n=htonl(len);
+					len_d-=5+num*8;
+					int len_n=htonl(len_d);
 					for(int i=0;i<num;++i){
 						id=ntohl64(buff+9+8*i);
 						if(p=(client *)data->search(id)){
-							if(send(p->fd,&len_n,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
+							if(send(p->fd,&len_n,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len_d,MSG_NOSIGNAL)<0){
 								p->mutex_unlock();
 								data->remove(id);
 								logger->printf("(id:%ld) push failed,broken link\n",id);
