@@ -2,6 +2,7 @@
 #include "push.h"
 #include <sys/ioctl.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 
 void *accept_tcp(void *arg){
@@ -46,87 +47,93 @@ void *read_socket(void * arg){
 	for(;;){
 		if(epoll_wait(epollfd_socket, events, 1, -1)<1){
 			logger->printf("epollfd_socket wait error. errno:%d\n",errno);
-		}else{
-			sockfd=events[0].data.fd;
-			//check whether data is ready for process
-			if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
-				ev.data.fd=sockfd;
-				ev.events=EPOLLIN|EPOLLIN;
-				if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket_et, EPOLL_CTL_ADD, sockfd, &ev)==-1){
-					close(sockfd);
-					logger->printf("move socket(%d) from epollfd_socket to epollfd_socket_et failed. errno:%d\n",sockfd,errno);
-				}else{
-					list_socket->append(sockfd);
-				}
-			} else if(len_d>MAX_MESSAGE_SIZE){
+			continue;
+		}
+		sockfd=events[0].data.fd;
+		//check whether data is ready for process
+		if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
+			ev.data.fd=sockfd;
+			ev.events=EPOLLIN|EPOLLET;
+			if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket_et, EPOLL_CTL_ADD, sockfd, &ev)==-1){
 				close(sockfd);
-				logger->printf("read socket(%d) len(%d) > %d\n", sockfd,len_d,MAX_MESSAGE_SIZE);
-			}else if(ioctl(sockfd,FIONREAD,&len)==-1){
-				close(sockfd);
-				logger->printf("ioctl failed\n");
-			}else if(len<len_d+4){
-				ev.data.fd=sockfd;
-				ev.events=EPOLLIN|EPOLLIN;
-				if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket_et, EPOLL_CTL_ADD, sockfd, &ev)==-1){
-					close(sockfd);
-					logger->printf("move socket(%d) from epollfd_socket to epollfd_socket_et failed. errno:%d\n",sockfd,errno);
-				}else{
-					list_socket->append(sockfd);
-				}
-			}else if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
-				close(sockfd);
-				logger->printf("read socket len!=%d\n",len);
+				logger->printf("move socket(%d) from epollfd_socket to epollfd_socket_et failed. errno:%d\n",sockfd,errno);
 			}else{
-				//start process
-				unsigned char cmd=buff[4];
-				if(cmd==1){//bind
-					if(len!=13){
-						close(sockfd);
-						logger->printf("cmd 1 :len!=13\n");
-					}else{
-						memcpy(&id,buff+5,8);
-						data->insert(id,(p=new client(id,sockfd)));
-						if(send(sockfd,ack_ok,7,MSG_NOSIGNAL)<0){
-							p->mutex_unlock();
-							data->remove(id);
-							logger->printf("(id:%ld) send bind response failed\n", id);
-						}else{
-							p->mutex_unlock();
-							logger->printf("(id:%ld) bind success\n", id);
-							ev.data.u64=id;
-							ev.events = EPOLLIN;
-							if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_client, EPOLL_CTL_ADD, sockfd, &ev)==-1){
-								data->remove(id);
-								logger->printf("move client(%ld) from epollfd_socket to epollfd_client failed. errno:%d\n",id,errno);
-							}
-						}
-					}
-				}else if(cmd==2){//push
-					memcpy(&num,buff+5,4);
-					if(len<(9+num*8)){
-						close(sockfd);
-						logger->printf("cmd 2 :len(%d) <%d\n", len,9+num*8);
-					}else{
-						const char *content=buff+9+num*8;
-						len-=9+num*8;
-						for(int i=0;i<num;++i){
-							memcpy(&id,buff+9+8*i,8);
-							if(p=(client *)data->search(id)){
-								if(send(p->fd,&len,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
-									p->mutex_unlock();
-									data->remove(id);
-									logger->printf("(id:%ld) push failed,broken link\n",id);
-								}else{
-									p->mutex_unlock();
-									logger->printf("(id:%ld) push success\n",id);
-								}
-							}
-						}
-					}
-				}else{
+				list_socket->append(sockfd);
+			}
+			continue;
+		}
+		len_d=ntohl(len_d);
+		if(len_d>MAX_MESSAGE_SIZE){
+			close(sockfd);
+			logger->printf("read socket(%d) len(%d) > %d\n", sockfd,len_d,MAX_MESSAGE_SIZE);
+		}else if(ioctl(sockfd,FIONREAD,&len)==-1){
+			close(sockfd);
+			logger->printf("ioctl failed\n");
+		}else if(len<len_d+4){
+			ev.data.fd=sockfd;
+			ev.events=EPOLLIN|EPOLLET;
+			if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket_et, EPOLL_CTL_ADD, sockfd, &ev)==-1){
+				close(sockfd);
+				logger->printf("move socket(%d) from epollfd_socket to epollfd_socket_et failed. errno:%d\n",sockfd,errno);
+			}else{
+				list_socket->append(sockfd);
+			}
+		}else if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
+			close(sockfd);
+			logger->printf("read socket len!=%d\n",len);
+		}else{
+			//start process
+			unsigned char cmd=buff[4];
+			if(cmd==1){//bind
+				if(len!=13){
 					close(sockfd);
-					logger->printf("socket(%d) unknown cmd:%d\n", sockfd,cmd);
+					logger->printf("cmd 1 :len!=13\n");
+				}else{
+					memcpy(&id,buff+5,8);
+					id=ntohll(id);
+					data->insert(id,(p=new client(id,sockfd)));
+					if(send(sockfd,ack_ok,7,MSG_NOSIGNAL)<0){
+						p->mutex_unlock();
+						data->remove(id);
+						logger->printf("(id:%ld) send bind response failed\n", id);
+					}else{
+						p->mutex_unlock();
+						logger->printf("(id:%ld) bind success\n", id);
+						ev.data.u64=id;
+						ev.events = EPOLLIN;
+						if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_client, EPOLL_CTL_ADD, sockfd, &ev)==-1){
+							data->remove(id);
+							logger->printf("move client(%ld) from epollfd_socket to epollfd_client failed. errno:%d\n",id,errno);
+						}
+					}
 				}
+			}else if(cmd==2){//push
+				memcpy(&num,buff+5,4);
+				num=ntohl(num);
+				if(len<(9+num*8)){
+					close(sockfd);
+					logger->printf("cmd 2 :len(%d) <%d\n", len,9+num*8);
+				}else{
+					const char *content=buff+9+num*8;
+					len-=9+num*8;
+					for(int i=0;i<num;++i){
+						memcpy(&id,buff+9+8*i,8);
+						id=ntohll(id);
+						if(p=(client *)data->search(id)){
+							if(send(p->fd,&len,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
+								p->mutex_unlock();
+								data->remove(id);
+								logger->printf("(id:%ld) push failed,broken link\n",id);
+							}else{
+								p->mutex_unlock();
+								logger->printf("(id:%ld) push success\n",id);
+							}
+						}
+					}
+				}
+			}else{
+				close(sockfd);
+				logger->printf("socket(%d) unknown cmd:%d\n", sockfd,cmd);
 			}
 		}
 	}
@@ -165,25 +172,31 @@ void *read_socket_et(void *arg){
 		}
 		if(epoll_wait(epollfd_socket_et,events,1,wait_time)<1){
 			continue;
-		}else{
-			sockfd=events[0].data.fd;
-			delete list_socket->get(sockfd);
-			if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
-				list_socket->append(sockfd);
-			} else if(len_d>MAX_MESSAGE_SIZE){
+		}
+		sockfd=events[0].data.fd;
+		delete list_socket->get(sockfd);
+		if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)<0){
+			close(sockfd);
+			logger->printf("broken socket(%d)\n", sockfd);
+			continue;
+		}else if(recv(sockfd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
+			list_socket->append(sockfd);
+			continue;
+		}
+		len_d=ntohl(len_d);
+		if(len_d>MAX_MESSAGE_SIZE){
+			close(sockfd);
+			logger->printf("read socket(%d) len(%d) > %d\n", sockfd,len_d,MAX_MESSAGE_SIZE);
+		}else if(ioctl(sockfd,FIONREAD,&len)==-1){
+			close(sockfd);
+			logger->printf("ioctl failed\n");
+		}else if(len<len_d+4){
+			list_socket->append(sockfd);
+		}else{//socket is ready for process
+			ev.data.fd=sockfd;
+			if(epoll_ctl(epollfd_socket_et, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket, EPOLL_CTL_ADD, sockfd, &ev)==-1){
 				close(sockfd);
-				logger->printf("read socket(%d) len(%d) > %d\n", sockfd,len_d,MAX_MESSAGE_SIZE);
-			}else if(ioctl(sockfd,FIONREAD,&len)==-1){
-				close(sockfd);
-				logger->printf("ioctl failed\n");
-			}else if(len<len_d+4){
-				list_socket->append(sockfd);
-			}else{//socket is ready for process
-				ev.data.fd=sockfd;
-				if(epoll_ctl(epollfd_socket_et, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_socket, EPOLL_CTL_ADD, sockfd, &ev)==-1){
-					close(sockfd);
-					logger->printf("move socket(%d) from epollfd_socket_et to epollfd_socket failed. errno:%d\n",sockfd,errno);
-				}
+				logger->printf("move socket(%d) from epollfd_socket_et to epollfd_socket failed. errno:%d\n",sockfd,errno);
 			}
 		}
 	}
@@ -207,6 +220,7 @@ void *read_client(void * arg){
 	for(;;){
 		if(epoll_wait(epollfd_client, events, 1, -1)<1){
 			logger->printf("epollfd_client wait error. errno:%d\n",errno);
+			continue;
 		}else{
 			id=events[0].data.u64;
 			if(!(p=(client *)data->search(id))){
@@ -214,7 +228,7 @@ void *read_client(void * arg){
 			}
 			if(recv(p->fd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 				ev.data.u64=id;
-				ev.events=EPOLLIN|EPOLLIN;
+				ev.events=EPOLLIN|EPOLLET;
 				if(epoll_ctl(epollfd_client, EPOLL_CTL_DEL, p->fd, NULL)==-1 || epoll_ctl(epollfd_client_et, EPOLL_CTL_ADD, p->fd, &ev)==-1){
 					p->mutex_unlock();
 					data->remove(id);
@@ -233,7 +247,7 @@ void *read_client(void * arg){
 				logger->printf("ioctl failed\n");
 			}else if(len<len_d+4){
 				ev.data.u64=id;
-				ev.events=EPOLLIN|EPOLLIN;
+				ev.events=EPOLLIN|EPOLLET;
 				if(epoll_ctl(epollfd_client, EPOLL_CTL_DEL, p->fd, NULL)==-1 || epoll_ctl(epollfd_client_et, EPOLL_CTL_ADD, p->fd, &ev)==-1){
 					p->mutex_unlock();
 					data->remove(id);
@@ -330,7 +344,11 @@ void *read_client_et(void * arg){
 			if(!(p=(client *)data->search(id))){
 				continue;
 			}
-			if(recv(p->fd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
+			if(recv(p->fd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)<0){
+				p->mutex_unlock();
+				data->remove(id);
+				logger->printf("broken cliend(%ld)\n", id);
+			}else if(recv(p->fd,&len_d,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 				list_client->append(id);
 				p->mutex_unlock();
 			} else if(len_d>MAX_MESSAGE_SIZE){
@@ -361,7 +379,7 @@ void *read_client_et(void * arg){
 
 
 int main(int argc,char *argv[]){
-	daemonize("push_server");
+	// daemonize("push_server");
 
 	char *path=getcwd(NULL,0);
 	if(path==NULL){

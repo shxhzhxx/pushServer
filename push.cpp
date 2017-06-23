@@ -37,11 +37,11 @@ client::~client() {
 }
 
 //============================list_item===================================
-list_item::list_item(long _time,long _data):timestamp(_time),data(_data){}
+list_item::list_item(long _time,long _data):timestamp(_time),data(_data),prev(0),next(0){}
 
 //============================linked_list===================================
 
-linked_list::linked_list(){
+linked_list::linked_list():item_l(0),item_f(0){
 	mutex = new pthread_mutex_t();
 	pthread_mutex_init(mutex,NULL);
 }
