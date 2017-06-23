@@ -241,26 +241,21 @@ void *read_client(void * arg){
 		len_d=ntohl(len_d);
 		printf("debug 2 fd:%d\n",p->fd);
 		if(len_d>MAX_MESSAGE_SIZE){
-			printf("debug x1\n");
 			p->mutex_unlock();
 			data->remove(id);
 			logger->printf("read client(%ld) len(%d) > %d\n", id,len_d,MAX_MESSAGE_SIZE);
 		}else if(ioctl(p->fd,FIONREAD,&len)==-1){
-			printf("debug x2\n");
 			p->mutex_unlock();
 			data->remove(id);
 			logger->printf("ioctl failed\n");
 		}else if(len<len_d+4){
-			printf("debug x3\n");
 			ev.data.u64=id;
 			ev.events=EPOLLIN|EPOLLET;
 			if(epoll_ctl(epollfd_client, EPOLL_CTL_DEL, p->fd, NULL)==-1 || epoll_ctl(epollfd_client_et, EPOLL_CTL_ADD, p->fd, &ev)==-1){
-				printf("debug x4\n");
 				p->mutex_unlock();
 				data->remove(id);
 				logger->printf("move client(%ld) from epollfd_client to epollfd_client_et failed. errno:%d\n",id,errno);
 			}else{
-				printf("debug x5\n");
 				p->mutex_unlock();
 				list_client->append(id);
 			}
