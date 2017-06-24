@@ -48,6 +48,7 @@ void *read_socket(void * arg){
 			logger->printf("epollfd_socket wait error. errno:%d\n",errno);
 			continue;
 		}
+
 		sockfd=events[0].data.fd;
 		//check whether data is ready for process
 		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
@@ -97,7 +98,7 @@ void *read_socket(void * arg){
 						logger->printf("(id:%ld) send bind response failed\n", id);
 					}else{
 						p->mutex_unlock();
-						logger->printf("(id:%ld) bind success\n", id);
+						// logger->printf("(id:%ld) bind success\n", id);
 						ev.data.u64=id;
 						ev.events = EPOLLIN;
 						if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_client, EPOLL_CTL_ADD, sockfd, &ev)==-1){
@@ -294,7 +295,7 @@ void *read_client(void * arg){
 								if(send(p->fd,&len_send,4,MSG_NOSIGNAL)<0 || send(p->fd,content,len,MSG_NOSIGNAL)<0){
 									p->mutex_unlock();
 									data->remove(id);
-									logger->printf("(id:%ld) push failed,broken link\n",id);
+									logger->printf("(id:%ld) push failed,broken link:%d\n",id,errno);
 								}else{
 									p->mutex_unlock();
 									// logger->printf("(id:%ld) push success\n",id);
