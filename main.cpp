@@ -98,7 +98,7 @@ void *read_socket(void * arg){
 						logger->printf("(id:%ld) send bind response failed\n", id);
 					}else{
 						p->mutex_unlock();
-						// logger->printf("(id:%ld) bind success\n", id);
+						logger->printf("(id:%ld) bind success\n", id);
 						ev.data.u64=id;
 						ev.events = EPOLLIN;
 						if(epoll_ctl(epollfd_socket, EPOLL_CTL_DEL, sockfd, NULL)==-1 || epoll_ctl(epollfd_client, EPOLL_CTL_ADD, sockfd, &ev)==-1){
