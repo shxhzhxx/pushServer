@@ -30,7 +30,7 @@
 
 
 #define SERVER_PORT "3889"
-#define MAX_MESSAGE_SIZE 1024
+#define MAX_MESSAGE_SIZE 10240
 #define READ_TIME_OUT 1000
 
 
