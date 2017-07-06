@@ -398,7 +398,7 @@ void *read_client_et(void * arg){
 
 
 int main(int argc,char *argv[]){
-	daemonize("push_server");
+	// daemonize("push_server");
 
 	char *path=getcwd(NULL,0);
 	if(path==NULL){
