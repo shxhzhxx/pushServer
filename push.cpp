@@ -170,22 +170,6 @@ int initTcpServer(const char * port){
 		return -1;
 	}
 
-
-	struct addrinfo *aiplist;
-	struct sockaddr_in *sinp;
-	const char *addr;
-	char abuf[INET_ADDRSTRLEN];
-	for(aiplist=aip;aiplist!=NULL;aiplist=aiplist->ai_next){
-		printf("aiplist\n");
-		if(aiplist->ai_family==AF_INET){
-			sinp=(struct sockaddr_in *)aiplist->ai_addr;
-			addr=inet_ntop(AF_INET,&sinp->sin_addr,abuf,INET_ADDRSTRLEN);
-			printf("address %s\n",addr?addr:"unknown");
-		}
-	}
-
-
-
 	if((fd=socket(aip->ai_addr->sa_family,SOCK_STREAM,0))<0){
 		return -1;
 	}
