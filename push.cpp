@@ -166,7 +166,7 @@ int initTcpServer(const char * port){
 	hint.ai_addr=NULL;
 	hint.ai_next=NULL;
 
-	if((getaddrinfo(NULL,port,&hint,&aip))!=0){
+	if((getaddrinfo("172.16.44.241",port,&hint,&aip))!=0){
 		return -1;
 	}
 
