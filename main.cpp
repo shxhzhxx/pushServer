@@ -72,6 +72,7 @@ int main(int argc,char *argv[]){
 	       		}
 	       		len=ntohl(len);
 	       		if(len>MAX_MESSAGE_SIZE || len<5 || ioctl(sockfd,FIONREAD,&len_recv)==-1){
+	       			logger.printf("invalid len or ioctl failed\n");
 	       			if(events[n].data.u32==1){
 	       				data.remove(events[n].data.u64);
 	       			}else{
@@ -83,6 +84,7 @@ int main(int argc,char *argv[]){
 	       			continue;//wait more data.
 	       		}
 	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
+	       			logger.printf("recv len != len\n");
 	       			if(events[n].data.u32==1){
 	       				data.remove(events[n].data.u64);
 	       			}else{
@@ -98,11 +100,13 @@ int main(int argc,char *argv[]){
 	       				continue;
 	       			}
 	       			if(len!=13){//invalid param
+	       				logger.printf("invalid param\n");
 	       				close(sockfd);
 	       				continue;
 	       			}
 	       			id=ntohl64(buff+5);
 	       			if(send(sockfd,ack_ok,7,MSG_NOSIGNAL)==-1){
+	       				logger.printf("send ack failed\n");
 	       				close(sockfd);
 	       			}else{//bind success
 	       				ev.events = EPOLLIN | EPOLLET;
