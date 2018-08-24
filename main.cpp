@@ -70,6 +70,7 @@ int main(int argc,char *argv[]){
 	       		//handle data
 	       		sockfd=events[n].data.fd;
 	       		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
+	       			logger.printf("wait more data\n");
 	       			continue;//wait more data.
 	       		}
 	       		len=ntohl(len);
@@ -83,6 +84,7 @@ int main(int argc,char *argv[]){
 	       			continue;
 	       		}
 	       		if(len_recv<len){
+	       			logger.printf("wait more data 2\n");
 	       			continue;//wait more data.
 	       		}
 	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
