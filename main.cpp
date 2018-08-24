@@ -41,6 +41,7 @@ int main(int argc,char *argv[]){
 		logger.printf("epoll_ctl: servfd failed\n");
 		exit(-1);
 	}
+	logger.printf("init success\n");
 
 	for (;;) {
 	   nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
