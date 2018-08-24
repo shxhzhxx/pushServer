@@ -54,7 +54,7 @@ int main(int argc,char *argv[]){
 	   for (n = 0; n < nfds; ++n) {
 	       if (events[n].data.fd == servfd) {
 	           sockfd = accept(servfd,NULL,NULL);
-	           logger.printf("accept\n");
+	           logger.printf("accept %d\n",sockfd);
 	           if (sockfd == -1) {
 					logger.printf("accept failed\n");
 	        		exit(-1);
@@ -69,6 +69,7 @@ int main(int argc,char *argv[]){
 	       } else {
 	       		//handle data
 	       		sockfd=events[n].data.fd;
+	       		logger.printf("handle data %d\n",sockfd);
 	       		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 	       			logger.printf("wait more data\n");
 	       			continue;//wait more data.
