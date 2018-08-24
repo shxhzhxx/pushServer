@@ -64,6 +64,10 @@ int main(int argc,char *argv[]){
 	           ev.events = EPOLLIN | EPOLLET;
 	           ev.data.fd = sockfd;
 	           ev.data.u32=0;//标记为未绑定
+	           logger.printf("fd %d\n", ev.data.fd);
+	           ev.data.fd = sockfd;
+	           ev.data.u64=0;
+	           logger.printf("fd %d\n", ev.data.fd);
 	           if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd,&ev) == -1) {
 					logger.printf("epoll_ctl: sockfd failed\n");
 					exit(-1);
