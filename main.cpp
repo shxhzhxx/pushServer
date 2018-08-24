@@ -3,6 +3,12 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+struct epoll_data
+{
+	int fd;
+	int status;
+	long id;
+};
 
 int main(int argc,char *argv[]){
 	daemonize("push_server");
@@ -52,8 +58,6 @@ int main(int argc,char *argv[]){
 	   logger.printf("nfds %d\n",nfds);
 
 	   for (n = 0; n < nfds; ++n) {
-	   		logger.printf("n %d\n", n);
-	   		logger.printf("wait %d\n",events[n].data.fd);
 	       if (events[n].data.fd == servfd) {
 	           sockfd = accept(servfd,NULL,NULL);
 	           logger.printf("accept %d\n",sockfd);
@@ -63,11 +67,6 @@ int main(int argc,char *argv[]){
 	           }
 	           ev.events = EPOLLIN | EPOLLET;
 	           ev.data.fd = sockfd;
-	           ev.data.u32=0;//标记为未绑定
-	           logger.printf("fd %d\n", ev.data.fd);
-	           ev.data.fd = sockfd;
-	           ev.data.u64=0;
-	           logger.printf("fd %d\n", ev.data.fd);
 	           if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd,&ev) == -1) {
 					logger.printf("epoll_ctl: sockfd failed\n");
 					exit(-1);
