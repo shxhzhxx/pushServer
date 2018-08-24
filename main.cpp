@@ -53,6 +53,7 @@ int main(int argc,char *argv[]){
 	   for (n = 0; n < nfds; ++n) {
 	       if (events[n].data.fd == servfd) {
 	           sockfd = accept(servfd,NULL,NULL);
+	           logger.printf("accept\n");
 	           if (sockfd == -1) {
 					logger.printf("accept failed\n");
 	        		exit(-1);
