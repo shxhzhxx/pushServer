@@ -58,7 +58,7 @@ int main(int argc,char *argv[]){
 					logger.printf("accept failed\n");
 	        		exit(-1);
 	           }
-	           ev.events = EPOLLIN | EPOLLET;
+	           ev.events = EPOLLIN ;
 	           ev.data.fd = sockfd;
 	           ev.data.u32=0;//标记为未绑定
 	           if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd,&ev) == -1) {
