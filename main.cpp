@@ -144,7 +144,7 @@ int main(int argc,char *argv[]){
 	       				if(p=(client *)data.search(id,false)){
 	       					if(send(p->fd,&len_send,4,MSG_NOSIGNAL)==-1 || send(p->fd,content,len,MSG_NOSIGNAL)==-1){
 	       						data.remove(id);
-	       						logger->printf("(id:%ld) push failed,broken link\n",id);
+	       						logger.printf("(id:%ld) push failed,broken link\n",id);
 	       					}
 	       				}
 	       			}
