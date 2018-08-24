@@ -52,6 +52,8 @@ int main(int argc,char *argv[]){
 	   logger.printf("nfds %d\n",nfds);
 
 	   for (n = 0; n < nfds; ++n) {
+	   		logger.printf("n %d\n", n);
+	   		logger.printf("wait %d\n",events[n].data.fd);
 	       if (events[n].data.fd == servfd) {
 	           sockfd = accept(servfd,NULL,NULL);
 	           logger.printf("accept %d\n",sockfd);
