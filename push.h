@@ -32,6 +32,7 @@
 #define SERVER_PORT "3889"
 #define MAX_MESSAGE_SIZE 10240
 #define READ_TIME_OUT 1000
+#define MAX_EVENTS 10
 
 
 
@@ -57,42 +58,6 @@ public:
 
     long id;
     int fd;
-};
-
-class list_item {
-public:
-	list_item(long timestamp,long data);
-	
-	long timestamp;
-	long data;
-	list_item *prev;
-    list_item *next;
-};
-
-class linked_list {
-public:
-    linked_list();
-    ~linked_list();
-	void append(long data);
-    void append_to_head(list_item *item);
-    list_item *pop();
-    list_item *get(long data);
-    
-private:
-	list_item *item_f;
-    list_item *item_l;
-    pthread_mutex_t *mutex;
-};
-
-struct common_data{
-	rb_tree *data;
-	Log *logger;
-	int epollfd_socket;
-    int epollfd_socket_et;
-    int epollfd_client;
-    int epollfd_client_et;
-    linked_list *list_socket;
-    linked_list *list_client;
 };
 
 struct KeepConfig {
