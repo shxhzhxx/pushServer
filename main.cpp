@@ -69,7 +69,7 @@ int main(int argc,char *argv[]){
 	       } else {
 	       		//handle data
 	       		id=events[n].data.u64>>32;
-	       		logger.printf("handle data %d\n",sockfd);
+	       		logger.printf("handle data %d\n",id);
 	       		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
 	       			logger.printf("wait more data\n");
 	       			continue;//wait more data.
@@ -100,6 +100,7 @@ int main(int argc,char *argv[]){
 
 	       		//process data
 	       		if(buff[4]==1){//bind
+	       			logger.printf("bind %d\n",id);
 	       			if(id!=0){//already bound
 	       				data.remove(id);
 	       				continue;
@@ -123,6 +124,7 @@ int main(int argc,char *argv[]){
 							continue;
 			            }
 	       				data.insert(id,(p=new client(id,sockfd)),false);
+	       				logger.printf("bind success %d\n",id);
 	       			}
 	       		}else if(buff[4]==2){//push
 	       			if(len<9){
