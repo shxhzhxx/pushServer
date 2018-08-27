@@ -42,7 +42,7 @@ uint32_t rb_tree::insert(uint32_t _key, uint32_t value) {
 uint32_t rb_tree::remove(uint32_t _key) {
     node *result = 0;
     if (rb_search(_key, &result) == 0) {
-        uint32_t prev=result.value;
+        uint32_t prev=result->value;
         rb_delete(result);
         return prev;
     } else {
@@ -260,7 +260,7 @@ void rb_tree::rb_delete(node *z) {
 }
 
 
-int rb_tree::rb_search(long _key, node **result) {
+int rb_tree::rb_search(uint32_t _key, node **result) {
     node *_root = root;
     while (_root != nil && _root->key != _key) {
         if (_root->key > _key)
