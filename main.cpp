@@ -15,7 +15,6 @@ int main(int argc,char *argv[]){
 	delete path;
 
 	rb_tree data;
-	client *p=0;
 	char buff[MAX_MESSAGE_SIZE];
 	char ack_ok[7]={0,0,0,7,'2','0','0'};
 
