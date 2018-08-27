@@ -29,12 +29,19 @@ public:
     rb_tree();
     ~rb_tree();
 
-    uint32_t search(uint32_t key);
     /**
-    重复时返回之前的value
+    没找到时返回-1
     */
-    uint32_t insert(uint32_t key, uint32_t value);
-    uint32_t remove(uint32_t key);
+    int32_t search(uint32_t key);
+    /**
+    重复时返回之前的value，否则-1
+    */
+    int32_t insert(uint32_t key, uint32_t value);
+
+    /**
+    没有对应的key时返回-1
+    */
+    int32_t remove(uint32_t key);
 
 private:
     node *nil;
@@ -58,9 +65,9 @@ private:
 
     void rb_delete(node *z);
 
-    uint32_t rb_insert(uint32_t _key, uint32_t value);
+    int32_t rb_insert(uint32_t _key, uint32_t value);
 
-    int rb_search(uint32_t _key, node **result);
+    node *rb_search(uint32_t _key);
 
     inline node *tree_minimum(node *x){
         while (x->left != nil)

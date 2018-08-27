@@ -124,7 +124,7 @@ int main(int argc,char *argv[]){
 							continue;
 			            }
 	       				uint32_t prev= data.insert(id,sockfd);
-	       				if(prev>0){
+	       				if(prev>=0){
 	       					close(prev);
 	       				}
 	       			}
@@ -153,7 +153,7 @@ int main(int argc,char *argv[]){
 	       			for(int i=0;i<num;++i){
 	       				memcpy(&id,buff+9+4*i,4);
 	       				id=ntohl(id);
-	       				if((sockfd=data.search(id))>0){
+	       				if((sockfd=data.search(id))>=0){
 	       					if(send(sockfd,&len_send,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
 	       						data.remove(id);
 	       						close(sockfd);

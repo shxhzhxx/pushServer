@@ -25,29 +25,28 @@ rb_tree::~rb_tree() {
     delete nil;
 }
 
-uint32_t rb_tree::search(uint32_t _key) {
+int32_t rb_tree::search(uint32_t _key) {
     node *result = 0;
-    if (rb_search(_key, &result) == -1){
-        return 0;
+    if (result=rb_search(_key)){
+        return result->value;
     }
-    return result->value;
+    return -1;
 }
 
 
-uint32_t rb_tree::insert(uint32_t _key, uint32_t value) {
+int32_t rb_tree::insert(uint32_t _key, uint32_t value) {
     return rb_insert(_key, value);
 }
 
 
-uint32_t rb_tree::remove(uint32_t _key) {
+int32_t rb_tree::remove(uint32_t _key) {
     node *result = 0;
-    if (rb_search(_key, &result) == 0) {
+    if (result=rb_search(_key)) {
         uint32_t prev=result->value;
         rb_delete(result);
         return prev;
-    } else {
-        return 0;
-    }
+    } 
+    return -1;
 }
 
 
@@ -131,7 +130,7 @@ void rb_tree::rb_insert_fixup(node *z) {
     root->color = BLACK;
 }
 
-uint32_t rb_tree::rb_insert(uint32_t _key, uint32_t _value) {
+int32_t rb_tree::rb_insert(uint32_t _key, uint32_t _value) {
     node *z = new node(_key, _value);
     z->color = RED;
     z->left = nil;
@@ -165,7 +164,7 @@ uint32_t rb_tree::rb_insert(uint32_t _key, uint32_t _value) {
             y->right = z;
     }
     rb_insert_fixup(z);
-    return 0;
+    return -1;
 }
 
 
@@ -260,7 +259,7 @@ void rb_tree::rb_delete(node *z) {
 }
 
 
-int rb_tree::rb_search(uint32_t _key, node **result) {
+node *rb_tree::rb_search(uint32_t _key) {
     node *_root = root;
     while (_root != nil && _root->key != _key) {
         if (_root->key > _key)
@@ -268,10 +267,9 @@ int rb_tree::rb_search(uint32_t _key, node **result) {
         else
             _root = _root->right;
     }
-    *result = _root;
     if (_root == nil) {
-        return -1;
-    } else {
         return 0;
+    } else {
+        return _root;
     }
 }
