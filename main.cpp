@@ -127,6 +127,7 @@ int main(int argc,char *argv[]){
 	       				logger.printf("bind success %d\n",id);
 	       			}
 	       		}else if(buff[4]==2){//push
+	       			logger.printf("push %d\n",id);
 	       			if(len<9){
 	       				logger.printf("cmd 2 :len(%d)<9\n",len);
 	       				if(id!=0){
