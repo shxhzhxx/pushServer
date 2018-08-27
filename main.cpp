@@ -41,7 +41,7 @@ int main(int argc,char *argv[]){
 		logger.printf("epoll_ctl: servfd failed\n");
 		exit(-1);
 	}
-	logger.printf("init success %d\n",servfd);
+	logger.printf("init success\n");
 
 	for (;;) {
 	   nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
@@ -49,13 +49,11 @@ int main(int argc,char *argv[]){
 			logger.printf("epoll_wait failed\n");
 	    	exit(-1);
 	   }
-	   logger.printf("nfds %d\n",nfds);
 
 	   for (n = 0; n < nfds; ++n) {
 	   		sockfd=events[n].data.u64;
 	       if (sockfd == servfd) {
 	           sockfd = accept(servfd,NULL,NULL);
-	           logger.printf("accept %d\n",sockfd);
 	           if (sockfd == -1) {
 					logger.printf("accept failed\n");
 	        		exit(-1);
@@ -69,9 +67,7 @@ int main(int argc,char *argv[]){
 	       } else {
 	       		//handle data
 	       		id=events[n].data.u64>>32;
-	       		logger.printf("handle data %d\n",id);
 	       		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
-	       			logger.printf("wait more data\n");
 	       			continue;//wait more data.
 	       		}
 	       		len=ntohl(len);
@@ -85,7 +81,6 @@ int main(int argc,char *argv[]){
 	       			continue;
 	       		}
 	       		if(len_recv<len){
-	       			logger.printf("wait more data 2\n");
 	       			continue;//wait more data.
 	       		}
 	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
@@ -100,7 +95,6 @@ int main(int argc,char *argv[]){
 
 	       		//process data
 	       		if(buff[4]==1){//bind
-	       			logger.printf("bind %d\n",id);
 	       			if(id!=0){//already bound
 	       				data.remove(id);
 	       				continue;
@@ -124,10 +118,8 @@ int main(int argc,char *argv[]){
 							continue;
 			            }
 	       				data.insert(id,(p=new client(id,sockfd)),false);
-	       				logger.printf("bind success %d\n",id);
 	       			}
 	       		}else if(buff[4]==2){//push
-	       			logger.printf("push %d\n",id);
 	       			if(len<9){
 	       				logger.printf("cmd 2 :len(%d)<9\n",len);
 	       				if(id!=0){
