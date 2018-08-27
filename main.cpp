@@ -116,13 +116,13 @@ int main(int argc,char *argv[]){
 	       				logger.printf("send ack failed\n");
 	       				close(sockfd);
 	       			}else{//bind success
-	     //   				ev.events = EPOLLIN | EPOLLET;
-						// ev.data.u64=id<<32 | sockfd;
-	     //   				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1) {
-						// 	logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
-						// 	close(sockfd);
-						// 	continue;
-			   //          }
+	       				ev.events = EPOLLIN | EPOLLET;
+						ev.data.u64=id<<32 | sockfd;
+	       				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1) {
+							logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
+							close(sockfd);
+							continue;
+			            }
 	       				data.insert(id,(p=new client(id,sockfd)),false);
 	       				logger.printf("bind success %d\n",id);
 	       			}
