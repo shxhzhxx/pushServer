@@ -5,35 +5,20 @@
 const int BLACK = 0;
 const int RED = 1;
 
-class satellite {
-public:
-    friend class rb_tree;
-    
-    satellite();
-    virtual ~satellite();
-    void mutex_unlock();
-private:
-    int mutex_trylock();
-    void mutex_lock();
-
-    pthread_mutex_t *mutex;
-};
-
 
 /*the node of the red&black tree*/
 class node {
 public:
-    node(long _key = 0, satellite *_p = 0);
-    ~node();
+    node(uint32_t _key = 0, uint32_t _value = 0);
     void free_tree(node *nil);
 
-    long key;
+    uint32_t key;
     node *parent;
     node *left;
     node *right;
     int color;
 
-    satellite *p;
+    uint32_t value;
 };
 
 
@@ -43,54 +28,16 @@ public:
     rb_tree();
     ~rb_tree();
 
+    uint32_t search(uint32_t key);
     /**
-     * 查找一条数据，未找到时返回NULL，找到时返回指向数据的指针
-     */
-    satellite *search(long key, bool lock = true);
-
-    /**
-     * 查找数据，
-     * 尝试上锁   未找到数据时返回-1，找到数据但上锁失败时返回1，找到数据并上锁成功时返回0
-     */
-    int search_try(long key, satellite **result);
-
-    /**
-     * 插入一条数据，key重复时返回1，并覆盖原数据，正常时返回0
-     */
-    int insert(long key, satellite *data, bool lock = true);
-
-
-    /**
-     * 尝试插入一条数据，key重复时返回1，并覆盖原数据，
-     * 正常时返回0，
-     * key重复且插入（上锁）失败时返回-1
-     */
-    int insert_try(long key, satellite *data, bool lock = true);
-
-    /**
-     * 移除一条数据，成功时返回0，未找到指定数据时返回-1
-     */
-    int remove(long key);
-
-    /**
-     *从小到大，返回第index个数据
-     */
-    satellite *value_at(int index, bool lock = true);
-
-    int size();
-
+    重复时返回之前的value
+    */
+    uint32_t insert(uint32_t key, uint32_t value);
+    uint32_t remove(uint32_t key);
 
 private:
     node *nil;
     node *root;
-    int count;
-    pthread_rwlock_t *rwlock;
-
-    void rwlock_rdlock() { pthread_rwlock_rdlock(rwlock); }
-
-    void rwlock_wrlock() { pthread_rwlock_wrlock(rwlock); }
-
-    void rwlock_unlock() { pthread_rwlock_unlock(rwlock); }
 
     inline void rb_reset_root(){
         if (root == nil)
@@ -108,13 +55,11 @@ private:
 
     void rb_delete_fixup(node *x);
 
-    int rb_delete(node *z);
+    void rb_delete(node *z);
 
-    int rb_insert(long _key, satellite *data);
+    uint32_t rb_insert(uint32_t _key, uint32_t value);
 
-    int rb_insert_try(long _key, satellite *data);
-
-    int rb_search(long _key, node **result);
+    int rb_search(uint32_t _key, node **result);
 
     inline node *tree_minimum(node *x){
         while (x->left != nil)

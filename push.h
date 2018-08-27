@@ -50,16 +50,6 @@ private:
 	struct tm *tmp;
 };
 
-
-class client : public satellite {
-public:
-    client(long id,int fd);
-    ~client();
-
-    long id;
-    int fd;
-};
-
 struct KeepConfig {
     /** The time (in seconds) the connection needs to remain 
      * idle before TCP starts sending keepalive probes (TCP_KEEPIDLE socket option)

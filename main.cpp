@@ -75,9 +75,8 @@ int main(int argc,char *argv[]){
 	       			logger.printf("invalid len or ioctl failed\n");
 	       			if(id!=0){
 	       				data.remove(id);
-	       			}else{
-	       				close(sockfd);
 	       			}
+	       			close(sockfd);
 	       			continue;
 	       		}
 	       		if(len_recv<len){
@@ -87,25 +86,33 @@ int main(int argc,char *argv[]){
 	       			logger.printf("recv len != len\n");
 	       			if(id!=0){
 	       				data.remove(id);
-	       			}else{
-	       				close(sockfd);
 	       			}
+	       			close(sockfd);
 	       			continue;
 	       		}
 
 	       		//process data
 	       		if(buff[4]==1){//bind
 	       			if(id!=0){//already bound
-	       				data.remove(id);
+	       				uint32_t prev = data.remove(id);
+	       				if(prev!=sockfd){
+	       					logger.printf("error prev!=sockfd\n");
+	       				}
+	       				close(sockfd);
 	       				continue;
 	       			}
 	       			if(len!=9){//invalid param
-	       				logger.printf("invalid param\n");
+	       				logger.printf("invalid param len!=9\n");
 	       				close(sockfd);
 	       				continue;
 	       			}
 	       			memcpy(&id,buff+5,4);
 	       			id=ntohl(id);
+	       			if(id==0){
+	       				logger.printf("invalid param, id=0\n");
+	       				close(sockfd);
+	       				continue;
+	       			}
 	       			if(send(sockfd,ack_ok,7,MSG_NOSIGNAL)==-1){
 	       				logger.printf("send ack failed\n");
 	       				close(sockfd);
@@ -117,16 +124,18 @@ int main(int argc,char *argv[]){
 							close(sockfd);
 							continue;
 			            }
-	       				data.insert(id,(p=new client(id,sockfd)),false);
+	       				uint32_t prev= data.insert(id,sockfd);
+	       				if(prev>0){
+	       					close(prev);
+	       				}
 	       			}
 	       		}else if(buff[4]==2){//push
 	       			if(len<9){
 	       				logger.printf("cmd 2 :len(%d)<9\n",len);
 	       				if(id!=0){
 		       				data.remove(id);
-		       			}else{
-		       				close(sockfd);
 		       			}
+		       			close(sockfd);
 	       				continue;
 	       			}
 	       			memcpy(&num,buff+5,4);
@@ -135,9 +144,8 @@ int main(int argc,char *argv[]){
 	       				logger.printf("cmd 2 :len(%d) <%d\n", len,9+num*4);
 	       				if(id!=0){
 		       				data.remove(id);
-		       			}else{
-		       				close(sockfd);
 		       			}
+		       			close(sockfd);
 	       				continue;
 	       			}
 	       			const char *content=buff+9+num*4;
@@ -146,9 +154,10 @@ int main(int argc,char *argv[]){
 	       			for(int i=0;i<num;++i){
 	       				memcpy(&id,buff+9+4*i,4);
 	       				id=ntohl(id);
-	       				if(p=(client *)data.search(id,false)){
-	       					if(send(p->fd,&len_send,4,MSG_NOSIGNAL)==-1 || send(p->fd,content,len,MSG_NOSIGNAL)==-1){
+	       				if((sockfd=data.search(id))>0){
+	       					if(send(sockfd,&len_send,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
 	       						data.remove(id);
+	       						close(sockfd);
 	       						logger.printf("(id:%ld) push failed,broken link\n",id);
 	       					}
 	       				}
@@ -156,9 +165,8 @@ int main(int argc,char *argv[]){
 	       		}else{//unknown cmd
 	       			if(id!=0){
 	       				data.remove(id);
-	       			}else{
-	       				close(sockfd);
 	       			}
+	       			close(sockfd);
 	       		}
 	       }
 	   }

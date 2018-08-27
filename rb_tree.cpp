@@ -1,29 +1,8 @@
 #include "rb_tree.h"
 
-//============================satellite===================================
-satellite::satellite(){
-	mutex = new pthread_mutex_t();
-    pthread_mutex_init(mutex,NULL);
-}
-
-satellite::~satellite() {
-    pthread_mutex_destroy(mutex);
-    delete mutex;
-}
-
-int satellite::mutex_trylock() { return pthread_mutex_trylock(mutex); }
-
-void satellite::mutex_lock() { pthread_mutex_lock(mutex); }
-
-void satellite::mutex_unlock() {
-    pthread_mutex_unlock(mutex); 
-}
-
 
 //============================node===================================
-node::node(long _key, satellite *_p) : key(_key), parent(0), left(0), right(0), color(BLACK), p(_p){}
-
-node::~node() {delete p;}
+node::node(uint32_t _key, uint32_t _value) : key(_key), parent(0), left(0), right(0), color(BLACK), value(_value){}
 
 void node::free_tree(node *nil){
     if(left!=nil)
@@ -35,113 +14,42 @@ void node::free_tree(node *nil){
 
 
 //============================rb_tree===================================
-rb_tree::rb_tree() : nil(0), root(0), count(0), rwlock(0) {
+rb_tree::rb_tree() : nil(0), root(0){
     nil = new node();
     root = nil;
-    rwlock = new pthread_rwlock_t();
-    pthread_rwlock_init(rwlock, NULL);
 }
 
 rb_tree::~rb_tree() {
-    rwlock_wrlock();
     if(root!=nil)
         root->free_tree(nil);
     delete nil;
-    rwlock_unlock();
-    pthread_rwlock_destroy(rwlock);
-    delete rwlock;
 }
 
-satellite *rb_tree::search(long _key, bool lock) {
-    rwlock_rdlock();
+uint32_t rb_tree::search(uint32_t _key) {
     node *result = 0;
     if (rb_search(_key, &result) == -1){
-    	rwlock_unlock();
-        return NULL;
+        return 0;
     }
-    if (lock){
-        result->p->mutex_lock();
-    }
-    rwlock_unlock();
-    return result->p;
+    return result->value;
 }
 
-int rb_tree::search_try(long _key, satellite **result){
-    rwlock_rdlock();
-    node *node_p;
-    if (rb_search(_key, &node_p) == -1){
-        rwlock_unlock();
-        return -1;
-    }
-    int ret=0; 
-    if(node_p->p->mutex_trylock()!=0){
-        ret=1;
-    }
-    rwlock_unlock();
-    (*result)=node_p->p;
-    return ret;
+
+uint32_t rb_tree::insert(uint32_t _key, uint32_t value) {
+    return rb_insert(_key, value);
 }
 
-int rb_tree::insert(long _key, satellite *data, bool lock) {
-    rwlock_wrlock();
-    int result_code = rb_insert(_key, data);
-    if (lock)
-        data->mutex_lock();
-    if (result_code == 0)
-        count++;
-    rwlock_unlock();
-    return result_code;
-}
 
-int rb_tree::insert_try(long _key, satellite *data, bool lock){
-    rwlock_wrlock();
-    int result_code = rb_insert_try(_key, data);
-    if(result_code==-1){//加锁失败
-        return -1;
-    }
-    if (lock){
-        data->mutex_lock();
-    }
-    if (result_code == 0)
-        count++;
-    rwlock_unlock();
-    return result_code;
-}
-
-int rb_tree::remove(long _key) {
-    rwlock_wrlock();
+uint32_t rb_tree::remove(uint32_t _key) {
     node *result = 0;
     if (rb_search(_key, &result) == 0) {
+        uint32_t prev=result.value;
         rb_delete(result);
-        count--;
-        rwlock_unlock();
-        return 0;
+        return prev;
     } else {
-        rwlock_unlock();
-        return -1;
+        return 0;
     }
 }
 
-satellite *rb_tree::value_at(int index, bool lock) {
-    rwlock_rdlock();
-    if (root == nil || index >= count || index < 0) {
-        rwlock_unlock();
-        return NULL;
-    }
-    node *result = tree_minimum(root);
-    while (index > 0) {
-        result = tree_successor(result);
-        index--;
-    }
-    if (lock)
-        result->p->mutex_lock();
-    rwlock_unlock();
-    return result->p;
-}
-
-int rb_tree::size(){
-    return count;
-}
 
 void rb_tree::left_rotate(node *x) {
     node *y;
@@ -223,8 +131,8 @@ void rb_tree::rb_insert_fixup(node *z) {
     root->color = BLACK;
 }
 
-int rb_tree::rb_insert(long _key, satellite *data) {
-    node *z = new node(_key, data);
+uint32_t rb_tree::rb_insert(uint32_t _key, uint32_t _value) {
+    node *z = new node(_key, _value);
     z->color = RED;
     z->left = nil;
     z->right = nil;
@@ -240,13 +148,10 @@ int rb_tree::rb_insert(long _key, satellite *data) {
         } else if (z->key > x->key) {
             x = x->right;
         } else {
-            x->p->mutex_lock();
-            x->p->mutex_unlock();
-            satellite *temp = x->p;
-            x->p = z->p;
-            z->p = temp;
+            uint32_t prev=x->value;
+            x->value=z->value;
             delete z;
-            return 1;
+            return prev;
         }
     }
     z->parent = y;
@@ -263,49 +168,6 @@ int rb_tree::rb_insert(long _key, satellite *data) {
     return 0;
 }
 
-int rb_tree::rb_insert_try(long _key, satellite *data) {
-    node *z = new node(_key, data);
-    z->color = RED;
-    z->left = nil;
-    z->right = nil;
-    z->parent = 0;
-
-    node *y = nil;
-    node *x = root;
-
-    while (x != nil) {
-        y = x;
-        if (z->key < x->key) {
-            x = x->left;
-        } else if (z->key > x->key) {
-            x = x->right;
-        } else {
-            if(x->p->mutex_trylock()==0){
-                satellite *temp = x->p;
-                x->p = z->p;
-                z->p = temp;
-                delete z;
-                x->p->mutex_unlock();
-                return 1;
-            }else{
-                delete z;
-                return -1;
-            }   
-        }
-    }
-    z->parent = y;
-
-    if (y == nil) {
-        root = z;
-    } else {
-        if (z->key < y->key)
-            y->left = z;
-        else
-            y->right = z;
-    }
-    rb_insert_fixup(z);
-    return 0;
-}
 
 
 void rb_tree::rb_delete_fixup(node *x) {
@@ -364,7 +226,7 @@ void rb_tree::rb_delete_fixup(node *x) {
     x->color = BLACK;
 }
 
-int rb_tree::rb_delete(node *z) {
+void rb_tree::rb_delete(node *z) {
     node *y;
     node *x;
     if (z->left == nil || z->right == nil) {
@@ -388,18 +250,13 @@ int rb_tree::rb_delete(node *z) {
         }
     }
     if (y != z) {
-        satellite *p_temp = z->p;
         z->key = y->key;
-        z->p = y->p;
-        y->p = p_temp;
+        z->value = y->value;
     }
     if (y->color == BLACK) {
         rb_delete_fixup(x);
     }
-    y->p->mutex_lock();
-    y->p->mutex_unlock();
     delete y;
-    return 0;
 }
 
 

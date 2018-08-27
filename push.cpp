@@ -28,14 +28,6 @@ void Log::flush(){
 }
 
 
-//============================client===================================
-client::client(long _id,int _fd) :id(_id), fd(_fd) {
-}
-
-client::~client() {
-	close(fd);
-}
-
 //============================function===================================
 long getCurrentTime(){
    struct timeval tv;
