@@ -1,6 +1,7 @@
 ﻿#include <unistd.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdint.h>
 
 const int BLACK = 0;
 const int RED = 1;
