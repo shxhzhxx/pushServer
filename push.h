@@ -99,5 +99,3 @@ int initTcpServer(const char * port);
 int initTcpClient(const char *ip,const char *port);
 
 int daemonize(const char *cmd);
-
-unsigned long ntohl64(char *buff);
