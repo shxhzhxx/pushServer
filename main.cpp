@@ -162,6 +162,7 @@ int main(int argc,char *argv[]){
 	       				}
 	       			}
 	       		}else{//unknown cmd
+	       			logger.printf("unknow cmd: %d\n", buff[4]);
 	       			if(id!=0){
 	       				data.remove(id);
 	       			}
