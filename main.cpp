@@ -17,6 +17,7 @@ int main(int argc,char *argv[]){
 	rb_tree data;
 	char buff[MAX_MESSAGE_SIZE];
 	char ack_ok[7]={0,0,0,7,'2','0','0'};
+	struct KeepConfig cfg = { 20, 2, 5};
 
 	struct epoll_event ev, events[MAX_EVENTS];
 	uint32_t servfd, sockfd, n, nfds, epollfd;
@@ -57,6 +58,7 @@ int main(int argc,char *argv[]){
 					logger.printf("accept failed\n");
 	        		exit(-1);
 	           }
+	           set_tcp_keepalive_cfg(sockfd, &cfg);
 	           ev.events = EPOLLIN | EPOLLET;
 	           ev.data.u64 = sockfd;
 	           if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd,&ev) == -1) {
