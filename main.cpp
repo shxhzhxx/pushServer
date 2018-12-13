@@ -14,7 +14,7 @@ int main(int argc,char *argv[]){
 	Log logger(path);
 	delete path;
 
-	rb_tree data;
+	std::unordered_map<int, int> data;
 	char buff[MAX_MESSAGE_SIZE];
 	char ack_ok[7]={0,0,0,7,'2','0','0'};
 	struct KeepConfig cfg = { 20, 2, 5};
@@ -75,7 +75,7 @@ int main(int argc,char *argv[]){
 	       		if(len>MAX_MESSAGE_SIZE || len<5 || ioctl(sockfd,FIONREAD,&len_recv)==-1){
 	       			logger.printf("invalid len or ioctl failed\n");
 	       			if(id!=0){
-	       				data.remove(id);
+	       				data.erase(id);
 	       			}
 	       			close(sockfd);
 	       			continue;
@@ -86,7 +86,7 @@ int main(int argc,char *argv[]){
 	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
 	       			logger.printf("recv len != len\n");
 	       			if(id!=0){
-	       				data.remove(id);
+	       				data.erase(id);
 	       			}
 	       			close(sockfd);
 	       			continue;
@@ -95,10 +95,10 @@ int main(int argc,char *argv[]){
 	       		//process data
 	       		if(buff[4]==1){//bind
 	       			if(id!=0){//already bound
-	       				uint32_t prev = data.remove(id);
-	       				if(prev!=sockfd){
+	       				if(data.find(id)==data.end() || data[id]!=sockfd){
 	       					logger.printf("error prev!=sockfd\n");
 	       				}
+	       				data.erase(id);
 	       				close(sockfd);
 	       				continue;
 	       			}
@@ -125,16 +125,16 @@ int main(int argc,char *argv[]){
 							close(sockfd);
 							continue;
 			            }
-	       				uint32_t prev= data.insert(id,sockfd);
-	       				if(prev>=0){
-	       					close(prev);
-	       				}
+			            if(data.find(id)!=data.end()){
+			            	close(data[id]);
+			            }
+			            data[id]=sockfd;
 	       			}
 	       		}else if(buff[4]==2){//push
 	       			if(len<9){
 	       				logger.printf("cmd 2 :len(%d)<9\n",len);
 	       				if(id!=0){
-		       				data.remove(id);
+		       				data.erase(id);
 		       			}
 		       			close(sockfd);
 	       				continue;
@@ -144,7 +144,7 @@ int main(int argc,char *argv[]){
 	       			if(len<(9+num*4)){
 	       				logger.printf("cmd 2 :len(%d) <%d\n", len,9+num*4);
 	       				if(id!=0){
-		       				data.remove(id);
+		       				data.erase(id);
 		       			}
 		       			close(sockfd);
 	       				continue;
@@ -155,9 +155,10 @@ int main(int argc,char *argv[]){
 	       			for(int i=0;i<num;++i){
 	       				memcpy(&id,buff+9+4*i,4);
 	       				id=ntohl(id);
-	       				if((sockfd=data.search(id))>=0){
+	       				if(data.find(id)!=data.end()){
+	       					sockfd=data[id];
 	       					if(send(sockfd,&len_send,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
-	       						data.remove(id);
+	       						data.erase(id);
 	       						close(sockfd);
 	       						logger.printf("(id:%ld) push failed,broken link\n",id);
 	       					}
@@ -166,7 +167,7 @@ int main(int argc,char *argv[]){
 	       		}else{//unknown cmd
 	       			logger.printf("unknow cmd: %d\n", buff[4]);
 	       			if(id!=0){
-	       				data.remove(id);
+	       				data.erase(id);
 	       			}
 	       			close(sockfd);
 	       		}

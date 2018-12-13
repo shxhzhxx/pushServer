@@ -9,15 +9,18 @@ int main()
         {2,222},
         {3,333}
     };
+    
+    
+    // Add two new entries to the unordered_map
+    u.insert({4,444});
+    u[5] = 555;
+    u.erase(2);
  
     // Iterate and print keys and values of unordered_map
     for( const auto& n : u ) {
         std::cout << "Key:[" << n.first << "] Value:[" << n.second << "]\n";
     }
  
-    // Add two new entries to the unordered_map
-    u[4] = 444;
-    u[5] = 555;
  
     // Output values by key
     std::cout << "The HEX of color RED is:[" << u[4] << "]\n";
