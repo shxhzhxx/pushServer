@@ -1,4 +1,4 @@
-obj=main.o push.o rb_tree.o
+obj=main.o push.o
 out=a.out
 
 $(out):$(obj)
@@ -10,9 +10,6 @@ main.o:main.cpp push.h
 
 push.o:push.cpp push.h
 	g++ -c push.cpp
-
-rb_tree.o:rb_tree.cpp rb_tree.h
-	g++ -c rb_tree.cpp
 
 .PHONY : clean
 clean:
