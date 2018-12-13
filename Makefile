@@ -6,10 +6,10 @@ $(out):$(obj)
 	rm $(obj)
 
 main.o:main.cpp push.h
-	g++ -c main.cpp
+	g++ -c main.cpp -std=c++11
 
 push.o:push.cpp push.h
-	g++ -c push.cpp
+	g++ -c push.cpp -std=c++11
 
 .PHONY : clean
 clean:
