@@ -206,6 +206,7 @@ int main(int argc,char *argv[]){
 	       						data.erase(id);
 	       						close(sockfd);
 	       						logger.printf("(id:%ld) push failed,broken link\n",id);
+	       						logger.printf("errno:%d\n", errno);
 	       					}
 	       				}
 	       			}
