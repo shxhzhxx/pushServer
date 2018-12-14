@@ -14,17 +14,33 @@ int main(int argc,char *argv[]){
 	Log logger(path);
 	delete path;
 
+	if(argc<2){
+		logger.printf("Usage: %s port\n", argv[0]);
+		exit(-1);
+	}
+
+	uint32_t buff_size=0;
+	if(argc>2){
+		buff_size=atoi(argv[2]);
+	}
+	if(buff_size<=0){
+		buff_size=10*1024;
+	}
+
+
 	std::unordered_map<int, int> data;
-	char buff[MAX_MESSAGE_SIZE];
+	std::unordered_map<int, int>::iterator search;
+	char buff[buff_size];
 	char ack_ok[7]={0,0,0,7,'2','0','0'};
 	struct KeepConfig cfg = { 20, 2, 5};
 
-	struct epoll_event ev, events[MAX_EVENTS];
+	uint32_t max_events=10;
+	struct epoll_event ev, events[max_events];
 	uint32_t servfd, sockfd, n, nfds, epollfd;
 	uint32_t len,len_recv,num;
 	uint64_t id;
 
-	if((servfd=initTcpServer(SERVER_PORT))==-1){
+	if((servfd=initTcpServer(argv[1]))==-1){
 		logger.printf("initTcpServer failed\n");
 		exit(-1);
 	}
@@ -44,7 +60,7 @@ int main(int argc,char *argv[]){
 	logger.printf("init success\n");
 
 	for (;;) {
-	   nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+	   nfds = epoll_wait(epollfd, events, max_events, -1);
 	   if (nfds == -1) {
 			logger.printf("epoll_wait failed\n");
 	    	exit(-1);
@@ -72,7 +88,7 @@ int main(int argc,char *argv[]){
 	       			continue;//wait more data.
 	       		}
 	       		len=ntohl(len);
-	       		if(len>MAX_MESSAGE_SIZE || len<5 || ioctl(sockfd,FIONREAD,&len_recv)==-1){
+	       		if(len>buff_size || len<5 || ioctl(sockfd,FIONREAD,&len_recv)==-1){
 	       			logger.printf("invalid len or ioctl failed\n");
 	       			if(id!=0){
 	       				data.erase(id);
@@ -92,10 +108,20 @@ int main(int argc,char *argv[]){
 	       			continue;
 	       		}
 
+	       		char cmd=buff[4];
 	       		//process data
-	       		if(buff[4]==1){//bind
+	       		if(cmd==0){//echo
+	       			if(send(sockfd,&(len-1),4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-5,MSG_NOSIGNAL)==-1){
+	       				if(id!=0){
+							data.erase(id);
+	       				}
+   						close(sockfd);
+   						logger.printf("push echo failed,broken link\n",id);
+	       			}
+	       		}else if(cmd==1){//bind
 	       			if(id!=0){//already bound
-	       				if(data.find(id)==data.end() || data[id]!=sockfd){
+	       				search=data.find(id);
+	       				if(search==data.end() || search->second!=sockfd){
 	       					logger.printf("error prev!=sockfd\n");
 	       				}
 	       				data.erase(id);
@@ -125,14 +151,35 @@ int main(int argc,char *argv[]){
 							close(sockfd);
 							continue;
 			            }
-			            if(data.find(id)!=data.end()){
-			            	close(data[id]);
+			            search=data.find(id);
+			            if(search!=data.end()){
+			            	close(search->second);
 			            }
 			            data[id]=sockfd;
 	       			}
-	       		}else if(buff[4]==2){//push
+	       		}else if(cmd==2){//single push
 	       			if(len<9){
-	       				logger.printf("cmd 2 :len(%d)<9\n",len);
+	       				logger.printf("single push :len(%d)<9\n",len);
+	       				if(id!=0){
+		       				data.erase(id);
+		       			}
+		       			close(sockfd);
+	       				continue;
+	       			}
+	       			memcpy(&id,buff+5,4);
+	       			id=ntohl(id);
+	       			search=data.find(id);
+	       			if(search!=data.end()){
+	       				sockfd=search->second;
+	       				if(send(sockfd,&(len-5),4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-9,MSG_NOSIGNAL)==-1){
+	       					data.erase(id);
+	       					close(sockfd);
+	       					logger.printf("(id:%ld) push failed,broken link\n",id);
+	       				}
+	       			}
+	       		} else if(cmd==3){//multi push
+	       			if(len<9){
+	       				logger.printf("multi push :len(%d)<9\n",len);
 	       				if(id!=0){
 		       				data.erase(id);
 		       			}
@@ -142,7 +189,7 @@ int main(int argc,char *argv[]){
 	       			memcpy(&num,buff+5,4);
 	       			num=ntohl(num);
 	       			if(len<(9+num*4)){
-	       				logger.printf("cmd 2 :len(%d) <%d\n", len,9+num*4);
+	       				logger.printf("multi push :len(%d) <%d\n", len,9+num*4);
 	       				if(id!=0){
 		       				data.erase(id);
 		       			}
@@ -155,8 +202,9 @@ int main(int argc,char *argv[]){
 	       			for(int i=0;i<num;++i){
 	       				memcpy(&id,buff+9+4*i,4);
 	       				id=ntohl(id);
-	       				if(data.find(id)!=data.end()){
-	       					sockfd=data[id];
+	       				search=data.find(id);
+	       				if(search!=data.end()){
+	       					sockfd=search->second;
 	       					if(send(sockfd,&len_send,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
 	       						data.erase(id);
 	       						close(sockfd);
@@ -164,8 +212,24 @@ int main(int argc,char *argv[]){
 	       					}
 	       				}
 	       			}
-	       		}else{//unknown cmd
-	       			logger.printf("unknow cmd: %d\n", buff[4]);
+	       		}else if(cmd==4){//get buffer size in bytes
+	       			if(len!=5){
+	       				if(id!=0){
+							data.erase(id);
+	       				}
+   						close(sockfd);
+	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
+	       				continue;
+	       			}
+	       			if(send(sockfd,&8,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size,4,MSG_NOSIGNAL)==-1){
+	       				if(id!=0){
+							data.erase(id);
+	       				}
+   						close(sockfd);
+	       				logger.printf("push buffer size failed,broken link\n");
+	       			}
+	       		} else{//unknown cmd
+	       			logger.printf("unknow cmd: %d\n", cmd);
 	       			if(id!=0){
 	       				data.erase(id);
 	       			}

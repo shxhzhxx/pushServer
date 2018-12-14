@@ -29,12 +29,6 @@
 #include <unordered_map>
 
 
-#define SERVER_PORT "3889"
-#define MAX_MESSAGE_SIZE 10240
-#define READ_TIME_OUT 1000
-#define MAX_EVENTS 10
-
-
 
 class Log{
 public:
