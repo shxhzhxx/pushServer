@@ -113,7 +113,7 @@ int main(int argc,char *argv[]){
 	       		//process data
 	       		if(cmd==0){//echo
 	       			len = htonl(len-1);
-	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-4,MSG_NOSIGNAL)==-1){
+	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-5,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
