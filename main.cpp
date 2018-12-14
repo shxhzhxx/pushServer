@@ -37,7 +37,7 @@ int main(int argc,char *argv[]){
 	uint32_t max_events=10;
 	struct epoll_event ev, events[max_events];
 	uint32_t servfd, sockfd, n, nfds, epollfd;
-	uint32_t len,len_recv,num;
+	uint32_t len,len_2,num;
 	uint64_t id;
 
 	if((servfd=initTcpServer(argv[1]))==-1){
@@ -88,7 +88,7 @@ int main(int argc,char *argv[]){
 	       			continue;//wait more data.
 	       		}
 	       		len=ntohl(len);
-	       		if(len>buff_size || len<5 || ioctl(sockfd,FIONREAD,&len_recv)==-1){
+	       		if(len>buff_size || len<5 || ioctl(sockfd,FIONREAD,&len_2)==-1){
 	       			logger.printf("invalid len or ioctl failed\n");
 	       			if(id!=0){
 	       				data.erase(id);
@@ -96,7 +96,7 @@ int main(int argc,char *argv[]){
 	       			close(sockfd);
 	       			continue;
 	       		}
-	       		if(len_recv<len){
+	       		if(len_2<len){
 	       			continue;//wait more data.
 	       		}
 	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
@@ -111,8 +111,8 @@ int main(int argc,char *argv[]){
 	       		char cmd=buff[4];
 	       		//process data
 	       		if(cmd==0){//echo
-	       			len = htonl(len-1);
-	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-5,MSG_NOSIGNAL)==-1){
+	       			len_2 = htonl(len-1);
+	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-5,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
@@ -167,8 +167,8 @@ int main(int argc,char *argv[]){
 	       			search=data.find(id);
 	       			if(search!=data.end()){
 	       				sockfd=search->second;
-	       				len = htonl(len-5);
-	       				if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-4,MSG_NOSIGNAL)==-1){
+	       				len_2 = htonl(len-5);
+	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-4,MSG_NOSIGNAL)==-1){
 	       					data.erase(id);
 	       					close(sockfd);
 	       					logger.printf("(id:%ld) push failed,broken link\n",id);
@@ -195,14 +195,14 @@ int main(int argc,char *argv[]){
 	       			}
 	       			const char *content=buff+9+num*4;
 	       			len-=9+num*4;
-	       			int len_send=htonl(len+4);
+	       			int len_2=htonl(len+4);
 	       			for(int i=0;i<num;++i){
 	       				memcpy(&id,buff+9+4*i,4);
 	       				id=ntohl(id);
 	       				search=data.find(id);
 	       				if(search!=data.end()){
 	       					sockfd=search->second;
-	       					if(send(sockfd,&len_send,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
+	       					if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
 	       						data.erase(id);
 	       						close(sockfd);
 	       						logger.printf("(id:%ld) push failed,broken link\n",id);
@@ -218,8 +218,8 @@ int main(int argc,char *argv[]){
 	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
 	       				continue;
 	       			}
-	       			len=htonl(8);
-	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size_big_endian,4,MSG_NOSIGNAL)==-1){
+	       			len_2=htonl(8);
+	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size_big_endian,4,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
