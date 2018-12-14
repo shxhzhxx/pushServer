@@ -26,6 +26,7 @@ int main(int argc,char *argv[]){
 	if(buff_size<=0){
 		buff_size=10*1024;
 	}
+	uint32_t buff_size_big_endian = htonl(buff_size);
 
 
 	std::unordered_map<int, int> data;
@@ -111,7 +112,7 @@ int main(int argc,char *argv[]){
 	       		char cmd=buff[4];
 	       		//process data
 	       		if(cmd==0){//echo
-	       			--len;
+	       			len = htonl(len-1);
 	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-4,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
@@ -172,7 +173,7 @@ int main(int argc,char *argv[]){
 	       			search=data.find(id);
 	       			if(search!=data.end()){
 	       				sockfd=search->second;
-	       				len-=5;
+	       				len = htonl(len-5);
 	       				if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-4,MSG_NOSIGNAL)==-1){
 	       					data.erase(id);
 	       					close(sockfd);
@@ -223,8 +224,8 @@ int main(int argc,char *argv[]){
 	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
 	       				continue;
 	       			}
-	       			len=8;
-	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size,4,MSG_NOSIGNAL)==-1){
+	       			len=htonl(8);
+	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size_big_endian,4,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
