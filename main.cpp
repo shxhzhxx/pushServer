@@ -111,7 +111,8 @@ int main(int argc,char *argv[]){
 	       		char cmd=buff[4];
 	       		//process data
 	       		if(cmd==0){//echo
-	       			if(send(sockfd,&(len-1),4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-5,MSG_NOSIGNAL)==-1){
+	       			--len;
+	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-4,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
@@ -171,7 +172,8 @@ int main(int argc,char *argv[]){
 	       			search=data.find(id);
 	       			if(search!=data.end()){
 	       				sockfd=search->second;
-	       				if(send(sockfd,&(len-5),4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-9,MSG_NOSIGNAL)==-1){
+	       				len-=5;
+	       				if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-4,MSG_NOSIGNAL)==-1){
 	       					data.erase(id);
 	       					close(sockfd);
 	       					logger.printf("(id:%ld) push failed,broken link\n",id);
@@ -221,7 +223,8 @@ int main(int argc,char *argv[]){
 	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
 	       				continue;
 	       			}
-	       			if(send(sockfd,&8,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size,4,MSG_NOSIGNAL)==-1){
+	       			len=8;
+	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size,4,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
