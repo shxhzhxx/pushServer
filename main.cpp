@@ -32,7 +32,6 @@ int main(int argc,char *argv[]){
 	std::unordered_map<int, int> data;
 	std::unordered_map<int, int>::iterator search;
 	char buff[buff_size];
-	char ack_ok[7]={0,0,0,7,'2','0','0'};
 	struct KeepConfig cfg = { 20, 2, 5};
 
 	uint32_t max_events=10;
@@ -142,23 +141,18 @@ int main(int argc,char *argv[]){
 	       				close(sockfd);
 	       				continue;
 	       			}
-	       			if(send(sockfd,ack_ok,7,MSG_NOSIGNAL)==-1){
-	       				logger.printf("send ack failed\n");
-	       				close(sockfd);
-	       			}else{//bind success
-	       				ev.events = EPOLLIN | EPOLLET;
-						ev.data.u64=id<<32 | sockfd;
-	       				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1) {
-							logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
-							close(sockfd);
-							continue;
-			            }
-			            search=data.find(id);
-			            if(search!=data.end()){
-			            	close(search->second);
-			            }
-			            data[id]=sockfd;
-	       			}
+       				ev.events = EPOLLIN | EPOLLET;
+					ev.data.u64=id<<32 | sockfd;
+       				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1) {
+						logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
+						close(sockfd);
+						continue;
+		            }
+		            search=data.find(id);
+		            if(search!=data.end()){
+		            	close(search->second);
+		            }
+		            data[id]=sockfd;
 	       		}else if(cmd==2){//single push
 	       			if(len<9){
 	       				logger.printf("single push :len(%d)<9\n",len);
