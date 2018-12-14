@@ -168,7 +168,7 @@ int main(int argc,char *argv[]){
 	       			if(search!=data.end()){
 	       				sockfd=search->second;
 	       				len_2 = htonl(len-5);
-	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-4,MSG_NOSIGNAL)==-1){
+	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-9,MSG_NOSIGNAL)==-1){
 	       					data.erase(id);
 	       					close(sockfd);
 	       					logger.printf("(id:%ld) push failed,broken link\n",id);
