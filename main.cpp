@@ -86,7 +86,10 @@ int main(int argc,char *argv[]){
 	       } else {
 	       		//handle data
 	       		id=events[n].data.u64>>32;
-	       		len_2=recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK);
+
+	       		addrlen=sizeof(struct sockaddr);
+	       		logger.printf("addrlen1:%d\n", addrlen);
+	       		len_2=recvfrom(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK,&addr,&addrlen);
 	       		if(len_2<=0){
 	       			if(id!=0){
 	       				data.erase(id);
@@ -95,6 +98,7 @@ int main(int argc,char *argv[]){
 	       			logger.printf("broken link,clear\n");
 	       			continue;
 	       		}
+	       		logger.printf("addrlen2:%d\n", addrlen);
 
 	       		if(len_2!=4){ //wait more data.
 	       			ev.events = EPOLLIN | EPOLLET;
@@ -129,9 +133,7 @@ int main(int argc,char *argv[]){
        				}
 	       			continue;
 	       		}
-	       		addrlen=sizeof(struct sockaddr);
-	       		logger.printf("addrlen1:%d\n", addrlen);
-	       		if(recvfrom(sockfd,buff,len,MSG_DONTWAIT,&addr,&addrlen)!=len){
+	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
 	       			logger.printf("recv len != len\n");
 	       			if(id!=0){
 	       				data.erase(id);
@@ -139,7 +141,6 @@ int main(int argc,char *argv[]){
 	       			close(sockfd);
 	       			continue;
 	       		}
-	       		logger.printf("addrlen2:%d\n", addrlen);
 	       		ev.events = EPOLLIN;
 	       		ev.data.u64=id<<32 | sockfd;
 	       		if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
