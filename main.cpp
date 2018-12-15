@@ -72,7 +72,7 @@ int main(int argc,char *argv[]){
 	   		sockfd=events[n].data.u64;
 	       if (sockfd == servfd) {
 	           sockfd = accept(servfd,&addr,&addrlen);
-	           logger.printf("accept:%d   %s\n",addrlen, addr);
+	           logger.printf("accept:%d\n",addrlen);
 	           if (sockfd == -1) {
 					logger.printf("accept failed\n");
 	        		exit(-1);
