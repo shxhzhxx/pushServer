@@ -32,7 +32,7 @@ int main(int argc,char *argv[]){
 	std::unordered_map<int, int> data;
 	std::unordered_map<int, int>::iterator search;
 	char buff[buff_size];
-	struct KeepConfig cfg = { 20, 2, 5};
+	struct KeepConfig cfg = { 5, 2, 2};
 
 	uint32_t max_events=10;
 	struct epoll_event ev, events[max_events];
@@ -85,7 +85,15 @@ int main(int argc,char *argv[]){
 	       		//handle data
 	       		id=events[n].data.u64>>32;
 	       		len_2=recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK);
-	       		logger.printf("recv:%d\n", len_2);
+	       		if(len_2<=0){
+	       			if(id!=0){
+	       				data.erase(id);
+	       			}
+	       			close(sockfd);
+	       			logger.printf("broken link,clear\n");
+	       			continue;
+	       		}
+
 	       		if(len_2!=4){ //wait more data.
 	       			ev.events = EPOLLIN | EPOLLET;
 					ev.data.u64=id<<32 | sockfd;
