@@ -71,7 +71,8 @@ int main(int argc,char *argv[]){
 	   for (n = 0; n < nfds; ++n) {
 	   		sockfd=events[n].data.u64;
 	       if (sockfd == servfd) {
-	           sockfd = accept(servfd,NULL,NULL);
+	           sockfd = accept(servfd,&addr,&addrlen);
+	           logger.printf("accept:%d   %s\n",addrlen, addr);
 	           if (sockfd == -1) {
 					logger.printf("accept failed\n");
 	        		exit(-1);
@@ -86,10 +87,7 @@ int main(int argc,char *argv[]){
 	       } else {
 	       		//handle data
 	       		id=events[n].data.u64>>32;
-
-	       		addrlen=sizeof(struct sockaddr);
-	       		logger.printf("addrlen1:%d\n", addrlen);
-	       		len_2=recvfrom(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK,&addr,&addrlen);
+	       		len_2=recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK);
 	       		if(len_2<=0){
 	       			if(id!=0){
 	       				data.erase(id);
@@ -98,7 +96,6 @@ int main(int argc,char *argv[]){
 	       			logger.printf("broken link,clear\n");
 	       			continue;
 	       		}
-	       		logger.printf("addrlen2:%d\n", addrlen);
 
 	       		if(len_2!=4){ //wait more data.
 	       			ev.events = EPOLLIN | EPOLLET;
