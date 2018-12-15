@@ -109,6 +109,7 @@ int main(int argc,char *argv[]){
 	       		}
 
 	       		char cmd=buff[4];
+	       		logger.printf("cmd:%d\n",cmd);
 	       		//process data
 	       		if(cmd==0){//echo
 	       			len_2 = htonl(len-1);
