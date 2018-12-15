@@ -82,6 +82,7 @@ int main(int argc,char *argv[]){
 					exit(-1);
 	           }
 	       } else {
+	       		logger.printf("handle data\n");
 	       		//handle data
 	       		id=events[n].data.u64>>32;
 	       		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
