@@ -75,18 +75,26 @@ int main(int argc,char *argv[]){
 	        		exit(-1);
 	           }
 	           set_tcp_keepalive_cfg(sockfd, &cfg);
-	           ev.events = EPOLLIN | EPOLLET;
+	           ev.events = EPOLLIN;
 	           ev.data.u64 = sockfd;
 	           if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd,&ev) == -1) {
 					logger.printf("epoll_ctl: sockfd failed\n");
 					exit(-1);
 	           }
 	       } else {
-	       		logger.printf("handle data\n");
 	       		//handle data
 	       		id=events[n].data.u64>>32;
-	       		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){
-	       			continue;//wait more data.
+	       		if(recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK)!=4){ //wait more data.
+	       			ev.events = EPOLLIN | EPOLLET;
+					ev.data.u64=id<<32 | sockfd;
+       				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
+		       			if(id!=0){
+		       				data.erase(id);
+		       			}
+		       			close(sockfd);
+		       			logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
+       				}
+	       			continue;
 	       		}
 	       		len=ntohl(len);
 	       		if(len>buff_size || len<5 || ioctl(sockfd,FIONREAD,&len_2)==-1){
@@ -97,8 +105,17 @@ int main(int argc,char *argv[]){
 	       			close(sockfd);
 	       			continue;
 	       		}
-	       		if(len_2<len){
-	       			continue;//wait more data.
+	       		if(len_2<len){//wait more data.
+	       			ev.events = EPOLLIN | EPOLLET;
+					ev.data.u64=id<<32 | sockfd;
+       				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
+		       			if(id!=0){
+		       				data.erase(id);
+		       			}
+		       			close(sockfd);
+		       			logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
+       				}
+	       			continue;
 	       		}
 	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
 	       			logger.printf("recv len != len\n");
@@ -108,9 +125,17 @@ int main(int argc,char *argv[]){
 	       			close(sockfd);
 	       			continue;
 	       		}
+	       		ev.events = EPOLLIN;
+	       		ev.data.u64=id<<32 | sockfd;
+	       		if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
+       				if(id!=0){
+	       				data.erase(id);
+	       			}
+	       			close(sockfd);
+	       			logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
+	       		}
 
 	       		char cmd=buff[4];
-	       		logger.printf("cmd:%d\n",cmd);
 	       		//process data
 	       		if(cmd==0){//echo
 	       			len_2 = htonl(len-1);
@@ -143,7 +168,7 @@ int main(int argc,char *argv[]){
 	       				close(sockfd);
 	       				continue;
 	       			}
-       				ev.events = EPOLLIN | EPOLLET;
+       				ev.events = EPOLLIN;
 					ev.data.u64=id<<32 | sockfd;
        				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1) {
 						logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
