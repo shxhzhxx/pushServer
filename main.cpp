@@ -39,6 +39,8 @@ int main(int argc,char *argv[]){
 	uint32_t servfd, sockfd, n, nfds, epollfd;
 	uint32_t len,len_2,num;
 	uint64_t id;
+	struct sockaddr addr;
+    socklen_t addrlen;
 
 	if((servfd=initTcpServer(argv[1]))==-1){
 		logger.printf("initTcpServer failed\n");
@@ -127,7 +129,8 @@ int main(int argc,char *argv[]){
        				}
 	       			continue;
 	       		}
-	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
+	       		addrlen=sizeof(struct sockaddr);
+	       		if(recvfrom(sockfd,buff,len,MSG_DONTWAIT,&addr,&addrlen)!=len){
 	       			logger.printf("recv len != len\n");
 	       			if(id!=0){
 	       				data.erase(id);
@@ -258,6 +261,23 @@ int main(int argc,char *argv[]){
 	       			}
 	       			len_2=htonl(8);
 	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size_big_endian,4,MSG_NOSIGNAL)==-1){
+	       				if(id!=0){
+							data.erase(id);
+	       				}
+   						close(sockfd);
+	       				logger.printf("push buffer size failed,broken link\n");
+	       			}
+	       		}else if(cmd==5){
+	       			if(len!=5){
+	       				if(id!=0){
+							data.erase(id);
+	       				}
+   						close(sockfd);
+	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
+	       				continue;
+	       			}
+	       			len_2=htonl(4+addrlen);
+	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,&addr,addrlen,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
