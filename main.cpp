@@ -130,6 +130,7 @@ int main(int argc,char *argv[]){
 	       			continue;
 	       		}
 	       		addrlen=sizeof(struct sockaddr);
+	       		logger.printf("addrlen1:%d\n", addrlen);
 	       		if(recvfrom(sockfd,buff,len,MSG_DONTWAIT,&addr,&addrlen)!=len){
 	       			logger.printf("recv len != len\n");
 	       			if(id!=0){
@@ -138,6 +139,7 @@ int main(int argc,char *argv[]){
 	       			close(sockfd);
 	       			continue;
 	       		}
+	       		logger.printf("addrlen2:%d\n", addrlen);
 	       		ev.events = EPOLLIN;
 	       		ev.data.u64=id<<32 | sockfd;
 	       		if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
