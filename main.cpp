@@ -71,8 +71,7 @@ int main(int argc,char *argv[]){
 	   for (n = 0; n < nfds; ++n) {
 	   		sockfd=events[n].data.u64;
 	       if (sockfd == servfd) {
-	           sockfd = accept(servfd,&addr,&addrlen);
-	           logger.printf("accept:%d   %s\n",addrlen, addr.sa_data);
+	           sockfd = accept(servfd,NULL,NULL);
 	           if (sockfd == -1) {
 					logger.printf("accept failed\n");
 	        		exit(-1);
@@ -276,6 +275,8 @@ int main(int argc,char *argv[]){
 	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
 	       				continue;
 	       			}
+	       			addrlen=sizeof(addr);
+	       			getpeername(sockfd,&addr,&addrlen);
 	       			len_2=htonl(4+addrlen);
 	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,&addr,addrlen,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
