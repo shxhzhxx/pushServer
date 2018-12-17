@@ -276,7 +276,7 @@ int main(int argc,char *argv[]){
 	       				continue;
 	       			}
 	       			addrlen=sizeof(addr);
-	       			if(getpeername(sockfd,&addr,&addrlen)==-1){
+	       			if(getpeername(sockfd,(struct sockaddr *)&addr,&addrlen)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
