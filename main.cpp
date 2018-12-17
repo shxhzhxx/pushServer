@@ -285,7 +285,6 @@ int main(int argc,char *argv[]){
 	       				logger.printf("get address failed\n");
 	       				continue;
 	       			}
-	       			logger.printf("address:%s\n",address);
 	       			len_2=strlen(address);
 	       			len=htonl(4+len_2);
 	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,address,len_2,MSG_NOSIGNAL)==-1){
