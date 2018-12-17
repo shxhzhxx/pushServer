@@ -286,7 +286,7 @@ int main(int argc,char *argv[]){
 	       			}
 	       			logger.printf("address:%s\n",inet_ntoa(addr.sin_addr));
 	       			len_2=htonl(4+addrlen);
-	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,addr.sin_addr,addrlen,MSG_NOSIGNAL)==-1){
+	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,inet_ntoa(addr.sin_addr),addrlen,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
