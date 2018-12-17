@@ -39,7 +39,7 @@ int main(int argc,char *argv[]){
 	uint32_t servfd, sockfd, n, nfds, epollfd;
 	uint32_t len,len_2,num;
 	uint64_t id;
-	struct sockaddr addr;
+	struct sockaddr_in addr;
     socklen_t addrlen;
 
 	if((servfd=initTcpServer(argv[1]))==-1){
@@ -272,18 +272,26 @@ int main(int argc,char *argv[]){
 							data.erase(id);
 	       				}
    						close(sockfd);
-	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
+	       				logger.printf("get address invalid param, len(%d)!=5\n", len);
 	       				continue;
 	       			}
 	       			addrlen=sizeof(addr);
-	       			getpeername(sockfd,&addr,&addrlen);
-	       			len_2=htonl(4+addrlen);
-	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,addr.sa_data,addrlen,MSG_NOSIGNAL)==-1){
+	       			if(getpeername(sockfd,&addr,&addrlen)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
    						close(sockfd);
-	       				logger.printf("push buffer size failed,broken link\n");
+	       				logger.printf("get address failed\n", len);
+	       				continue;
+	       			}
+	       			logger.printf("address:%s\n",inet_ntoa(addr.sin_addr));
+	       			len_2=htonl(4+addrlen);
+	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,addr.sin_addr,addrlen,MSG_NOSIGNAL)==-1){
+	       				if(id!=0){
+							data.erase(id);
+	       				}
+   						close(sockfd);
+	       				logger.printf("push address failed,broken link\n");
 	       			}
 	       		} else{//unknown cmd
 	       			logger.printf("unknow cmd: %d\n", cmd);
