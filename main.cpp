@@ -278,7 +278,7 @@ int main(int argc,char *argv[]){
 	       			addrlen=sizeof(addr);
 	       			getpeername(sockfd,&addr,&addrlen);
 	       			len_2=htonl(4+addrlen);
-	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,&addr,addrlen,MSG_NOSIGNAL)==-1){
+	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,addr.sa_data,addrlen,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
