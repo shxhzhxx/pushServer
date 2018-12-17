@@ -41,6 +41,7 @@ int main(int argc,char *argv[]){
 	uint64_t id;
 	struct sockaddr_in addr;
     socklen_t addrlen;
+    char address[INET_ADDRSTRLEN];
 
 	if((servfd=initTcpServer(argv[1]))==-1){
 		logger.printf("initTcpServer failed\n");
@@ -276,17 +277,18 @@ int main(int argc,char *argv[]){
 	       				continue;
 	       			}
 	       			addrlen=sizeof(addr);
-	       			if(getpeername(sockfd,(struct sockaddr *)&addr,&addrlen)==-1){
+	       			if(getpeername(sockfd,(struct sockaddr *)&addr,&addrlen)==-1 || inet_ntop(AF_INET,&(addr.sin_addr),address,INET_ADDRSTRLEN)==NULL){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
    						close(sockfd);
-	       				logger.printf("get address failed\n", len);
+	       				logger.printf("get address failed\n");
 	       				continue;
 	       			}
-	       			logger.printf("address:%s\n",inet_ntoa(addr.sin_addr));
-	       			len_2=htonl(4+addrlen);
-	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,inet_ntoa(addr.sin_addr),addrlen,MSG_NOSIGNAL)==-1){
+	       			logger.printf("address:%s\n",address);
+	       			len_2=strlen(address);
+	       			len=htonl(4+len_2);
+	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,address,len_2,MSG_NOSIGNAL)==-1){
 	       				if(id!=0){
 							data.erase(id);
 	       				}
