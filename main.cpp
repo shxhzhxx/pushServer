@@ -5,11 +5,18 @@
 
 
 int main(int argc,char *argv[]){
-	daemonize("push_server");
 	if(argc<2){
 		printf("Need to specify a port to start the process, use\n\n    %s port\n\n", argv[0]);
 		exit(-1);
 	}
+
+	daemonize("push_server");
+	char *path=getcwd(NULL,0);
+	if(path==NULL){
+		exit(-1);
+	}
+	Log logger(path);
+	delete path;
 
 	uint32_t buff_size=0;
 	if(argc>2){
@@ -36,30 +43,23 @@ int main(int argc,char *argv[]){
     char address[INET_ADDRSTRLEN];
 
 	if((servfd=initTcpServer(argv[1]))==-1){
-		printf("initTcpServer failed\n");
+		logger.printf("initTcpServer failed\n");
 		exit(-1);
 	}
 
 	epollfd = epoll_create1(0);
 	if (epollfd == -1) {
-		printf("epoll_create1 failed\n");
+		logger.printf("epoll_create1 failed\n");
 		exit(-1);
 	}
 
 	ev.events = EPOLLIN;
 	ev.data.u64=servfd;
 	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, servfd, &ev) == -1) {
-		printf("epoll_ctl: servfd failed\n");
+		logger.printf("epoll_ctl: servfd failed\n");
 		exit(-1);
 	}
 
-	char *path=getcwd(NULL,0);
-	if(path==NULL){
-		exit(-1);
-	}
-	Log logger(path);
-	delete path;
-	
 	logger.printf("init success\n");
 
 	for (;;) {
