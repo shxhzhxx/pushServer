@@ -1,5 +1,5 @@
 obj=main.o push.o
-out=a.out
+out=push-daemon
 
 $(out):$(obj)
 	g++ -o $(out) $(obj) -lpthread -lm
