@@ -15,7 +15,7 @@ int main(int argc,char *argv[]){
 	delete path;
 
 	if(argc<2){
-		logger.printf("Usage: %s port\n", argv[0]);
+		printf("Need to specify a port to start the process, use\n\n    %s port\n\n", argv[0]);
 		exit(-1);
 	}
 
