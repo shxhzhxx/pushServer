@@ -5,6 +5,7 @@
 
 
 int main(int argc,char *argv[]){
+	daemonize("push_server");
 	if(argc<2){
 		printf("Need to specify a port to start the process, use\n\n    %s port\n\n", argv[0]);
 		exit(-1);
@@ -52,7 +53,6 @@ int main(int argc,char *argv[]){
 		exit(-1);
 	}
 
-	daemonize("push_server");
 	char *path=getcwd(NULL,0);
 	if(path==NULL){
 		exit(-1);
