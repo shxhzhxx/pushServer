@@ -307,11 +307,11 @@ int main(int argc,char *argv[]){
 	       			len-=5;
 	       			len_2=htonl(len+4);
 	       			for(const auto& iterator : data ) {
-	       				sockfd=iterator->second;
+	       				sockfd=iterator.second;
 	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
-	       					data.erase(iterator->first);
+	       					data.erase(iterator.first);
 	       					close(sockfd);
-	       					logger.printf("(id:%ld) push failed,broken link\n",iterator->first);
+	       					logger.printf("(id:%ld) push failed,broken link\n",iterator.first);
 	       					logger.printf("errno:%d\n", errno);
 	       				}
 				    }
