@@ -235,7 +235,7 @@ int main(int argc,char *argv[]){
 	       			}
 	       			const char *content=buff+9+num*4;
 	       			len-=9+num*4;
-	       			int len_2=htonl(len+4);
+	       			len_2=htonl(len+4);
 	       			for(int i=0;i<num;++i){
 	       				memcpy(&id,buff+9+4*i,4);
 	       				id=ntohl(id);
@@ -267,7 +267,7 @@ int main(int argc,char *argv[]){
    						close(sockfd);
 	       				logger.printf("push buffer size failed,broken link\n");
 	       			}
-	       		}else if(cmd==5){
+	       		}else if(cmd==5){//get ip
 	       			if(len!=5){
 	       				if(id!=0){
 							data.erase(id);
@@ -294,7 +294,28 @@ int main(int argc,char *argv[]){
    						close(sockfd);
 	       				logger.printf("push address failed,broken link\n");
 	       			}
-	       		} else{//unknown cmd
+	       		} else if(cmd==6){ //broadcast
+	       			if(len<5){
+	       				logger.printf("broadcast :len(%d)<9\n",len);
+	       				if(id!=0){
+		       				data.erase(id);
+		       			}
+		       			close(sockfd);
+	       				continue;
+	       			}
+	       			const char *content=buff+5;
+	       			len-=5;
+	       			len_2=htonl(len+4);
+	       			for(const auto& iterator : data ) {
+	       				sockfd=iterator->second;
+	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
+	       					data.erase(iterator->first);
+	       					close(sockfd);
+	       					logger.printf("(id:%ld) push failed,broken link\n",iterator->first);
+	       					logger.printf("errno:%d\n", errno);
+	       				}
+				    }
+	       		} else {//unknown cmd
 	       			logger.printf("unknow cmd: %d\n", cmd);
 	       			if(id!=0){
 	       				data.erase(id);
