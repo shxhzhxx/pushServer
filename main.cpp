@@ -29,7 +29,7 @@ int main(int argc,char *argv[]){
 
 
 	std::unordered_set<int> unbound_clients;
-	std::unordered_map<int, int> data;
+	std::unordered_map<int, int> bound_clients;
 	std::unordered_map<int, int>::iterator search;
 	char buff[buff_size];
 	struct KeepConfig cfg = { 5, 2, 2};
@@ -65,7 +65,7 @@ int main(int argc,char *argv[]){
 
 	auto closeClient = [](int id,int sockfd){
 		if(id!=0){
-			data.erase(id);
+			bound_clients.erase(id);
 		}else{
 			unbound_clients.erase(sockfd);
 		}
@@ -152,11 +152,11 @@ int main(int argc,char *argv[]){
 	       			}
 	       		}else if(cmd==1){//bind
 	       			if(id!=0){//already bound
-	       				search=data.find(id);
-	       				if(search==data.end() || search->second!=sockfd){
+	       				search=bound_clients.find(id);
+	       				if(search==bound_clients.end() || search->second!=sockfd){
 	       					logger.printf("error prev!=sockfd\n");
 	       				}
-	       				data.erase(id);
+	       				bound_clients.erase(id);
 	       				close(sockfd);
 	       				continue;
 	       			}
@@ -180,49 +180,40 @@ int main(int argc,char *argv[]){
 						close(sockfd);
 						continue;
 		            }
-		            search=data.find(id);
-		            if(search!=data.end()){
+		            search=bound_clients.find(id);
+		            if(search!=bound_clients.end()){
 		            	close(search->second);
 		            }
-		            data[id]=sockfd;
+		            bound_clients[id]=sockfd;
 	       		}else if(cmd==2){//single push
 	       			if(len<9){
+	       				closeClient(id,sockfd);
 	       				logger.printf("single push :len(%d)<9\n",len);
-	       				if(id!=0){
-		       				data.erase(id);
-		       			}
-		       			close(sockfd);
 	       				continue;
 	       			}
 	       			memcpy(&id,buff+5,4);
 	       			id=ntohl(id);
-	       			search=data.find(id);
-	       			if(search!=data.end()){
+	       			search=bound_clients.find(id);
+	       			if(search!=bound_clients.end()){
 	       				sockfd=search->second;
 	       				len_2 = htonl(len-5);
 	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+9,len-9,MSG_NOSIGNAL)==-1){
-	       					data.erase(id);
+	       					bound_clients.erase(id);
 	       					close(sockfd);
 	       					logger.printf("(id:%ld) push failed,broken link\n",id);
 	       				}
 	       			}
 	       		} else if(cmd==3){//multi push
 	       			if(len<9){
+	       				closeClient(id,sockfd);
 	       				logger.printf("multi push :len(%d)<9\n",len);
-	       				if(id!=0){
-		       				data.erase(id);
-		       			}
-		       			close(sockfd);
 	       				continue;
 	       			}
 	       			memcpy(&num,buff+5,4);
 	       			num=ntohl(num);
 	       			if(len<(9+num*4)){
+	       				closeClient(id,sockfd);
 	       				logger.printf("multi push :len(%d) <%d\n", len,9+num*4);
-	       				if(id!=0){
-		       				data.erase(id);
-		       			}
-		       			close(sockfd);
 	       				continue;
 	       			}
 	       			const char *content=buff+9+num*4;
@@ -231,11 +222,11 @@ int main(int argc,char *argv[]){
 	       			for(int i=0;i<num;++i){
 	       				memcpy(&id,buff+9+4*i,4);
 	       				id=ntohl(id);
-	       				search=data.find(id);
-	       				if(search!=data.end()){
+	       				search=bound_clients.find(id);
+	       				if(search!=bound_clients.end()){
 	       					sockfd=search->second;
 	       					if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
-	       						data.erase(id);
+	       						bound_clients.erase(id);
 	       						close(sockfd);
 	       						logger.printf("(id:%ld) push failed,broken link\n",id);
 	       						logger.printf("errno:%d\n", errno);
@@ -244,75 +235,63 @@ int main(int argc,char *argv[]){
 	       			}
 	       		}else if(cmd==4){//get buffer size in bytes
 	       			if(len!=5){
-	       				if(id!=0){
-							data.erase(id);
-	       				}
-   						close(sockfd);
+	       				closeClient(id,sockfd);
 	       				logger.printf("get buffer size invalid param, len(%d)!=5\n", len);
 	       				continue;
 	       			}
 	       			len_2=htonl(8);
 	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,&buff_size_big_endian,4,MSG_NOSIGNAL)==-1){
-	       				if(id!=0){
-							data.erase(id);
-	       				}
-   						close(sockfd);
+	       				closeClient(id,sockfd);
 	       				logger.printf("push buffer size failed,broken link\n");
 	       			}
 	       		}else if(cmd==5){//get ip
 	       			if(len!=5){
-	       				if(id!=0){
-							data.erase(id);
-	       				}
-   						close(sockfd);
+	       				closeClient(id,sockfd);
 	       				logger.printf("get address invalid param, len(%d)!=5\n", len);
 	       				continue;
 	       			}
 	       			addrlen=sizeof(addr);
 	       			if(getpeername(sockfd,(struct sockaddr *)&addr,&addrlen)==-1 || inet_ntop(AF_INET,&(addr.sin_addr),address,INET_ADDRSTRLEN)==NULL){
-	       				if(id!=0){
-							data.erase(id);
-	       				}
-   						close(sockfd);
+	       				closeClient(id,sockfd);
 	       				logger.printf("get address failed\n");
 	       				continue;
 	       			}
 	       			len_2=strlen(address);
 	       			len=htonl(4+len_2);
 	       			if(send(sockfd,&len,4,MSG_NOSIGNAL)==-1 || send(sockfd,address,len_2,MSG_NOSIGNAL)==-1){
-	       				if(id!=0){
-							data.erase(id);
-	       				}
-   						close(sockfd);
+	       				closeClient(id,sockfd);
 	       				logger.printf("push address failed,broken link\n");
 	       			}
 	       		} else if(cmd==6){ //broadcast
 	       			if(len<5){
 	       				logger.printf("broadcast :len(%d)<9\n",len);
-	       				if(id!=0){
-		       				data.erase(id);
-		       			}
-		       			close(sockfd);
+	       				closeClient(id,sockfd);
 	       				continue;
 	       			}
 	       			const char *content=buff+5;
 	       			len-=5;
 	       			len_2=htonl(len+4);
-	       			for(const auto& iterator : data ) {
-	       				sockfd=iterator.second;
+	       			for(const auto& client : bound_clients ) {
+	       				sockfd=client.second;
 	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
-	       					data.erase(iterator.first);
+	       					bound_clients.erase(client.first);
 	       					close(sockfd);
-	       					logger.printf("(id:%ld) push failed,broken link\n",iterator.first);
+	       					logger.printf("(id:%ld) push failed,broken link\n",client.first);
+	       					logger.printf("errno:%d\n", errno);
+	       				}
+				    }
+				    for(const auto& client : unbound_clients ) {
+	       				sockfd=client;
+	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
+	       					unbound_clients.erase(sockfd);
+	       					close(sockfd);
+	       					logger.printf("(fd:%ld) push failed,broken link\n",sockfd);
 	       					logger.printf("errno:%d\n", errno);
 	       				}
 				    }
 	       		} else {//unknown cmd
 	       			logger.printf("unknow cmd: %d\n", cmd);
-	       			if(id!=0){
-	       				data.erase(id);
-	       			}
-	       			close(sockfd);
+	       			closeClient(id,sockfd);
 	       		}
 	       }
 	   }
