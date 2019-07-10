@@ -63,7 +63,7 @@ int main(int argc,char *argv[]){
 
 	logger.printf("init success\n");
 
-	auto closeClient = [](int id,int sockfd){
+	auto closeClient = [&bound_clients,&unbound_clients](int id,int sockfd){
 		if(id!=0){
 			bound_clients.erase(id);
 		}else{
