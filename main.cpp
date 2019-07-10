@@ -28,6 +28,7 @@ int main(int argc,char *argv[]){
 	uint32_t buff_size_big_endian = htonl(buff_size);
 
 
+	std::unordered_set<int> unbound_clients;
 	std::unordered_map<int, int> data;
 	std::unordered_map<int, int>::iterator search;
 	char buff[buff_size];
@@ -62,6 +63,15 @@ int main(int argc,char *argv[]){
 
 	logger.printf("init success\n");
 
+	auto closeClient = [](int id,int sockfd){
+		if(id!=0){
+			data.erase(id);
+		}else{
+			unbound_clients.erase(sockfd);
+		}
+		close(sockfd);
+	};
+
 	for (;;) {
 	   nfds = epoll_wait(epollfd, events, max_events, -1);
 	   if (nfds == -1) {
@@ -83,16 +93,15 @@ int main(int argc,char *argv[]){
 	           if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd,&ev) == -1) {
 					logger.printf("epoll_ctl: sockfd failed\n");
 					exit(-1);
+	           }else{
+	           		unbound_clients.emplace(sockfd);
 	           }
 	       } else {
 	       		//handle data
 	       		id=events[n].data.u64>>32;
 	       		len_2=recv(sockfd,&len,4,MSG_DONTWAIT|MSG_PEEK);
 	       		if(len_2<=0){
-	       			if(id!=0){
-	       				data.erase(id);
-	       			}
-	       			close(sockfd);
+	       			closeClient(id,sockfd);
 	       			logger.printf("broken link,clear\n");
 	       			continue;
 	       		}
@@ -101,50 +110,35 @@ int main(int argc,char *argv[]){
 	       			ev.events = EPOLLIN | EPOLLET;
 					ev.data.u64=id<<32 | sockfd;
        				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
-		       			if(id!=0){
-		       				data.erase(id);
-		       			}
-		       			close(sockfd);
+		       			closeClient(id,sockfd);
 		       			logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
        				}
 	       			continue;
 	       		}
 	       		len=ntohl(len);
 	       		if(len>buff_size || len<5 || ioctl(sockfd,FIONREAD,&len_2)==-1){
+	       			closeClient(id,sockfd);
 	       			logger.printf("invalid len or ioctl failed\n");
-	       			if(id!=0){
-	       				data.erase(id);
-	       			}
-	       			close(sockfd);
 	       			continue;
 	       		}
 	       		if(len_2<len){//wait more data.
 	       			ev.events = EPOLLIN | EPOLLET;
 					ev.data.u64=id<<32 | sockfd;
        				if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
-		       			if(id!=0){
-		       				data.erase(id);
-		       			}
-		       			close(sockfd);
+       					closeClient(id,sockfd);
 		       			logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
        				}
 	       			continue;
 	       		}
 	       		if(recv(sockfd,buff,len,MSG_DONTWAIT)!=len){
+	       			closeClient(id,sockfd);
 	       			logger.printf("recv len != len\n");
-	       			if(id!=0){
-	       				data.erase(id);
-	       			}
-	       			close(sockfd);
 	       			continue;
 	       		}
 	       		ev.events = EPOLLIN;
 	       		ev.data.u64=id<<32 | sockfd;
 	       		if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd,&ev) == -1){
-       				if(id!=0){
-	       				data.erase(id);
-	       			}
-	       			close(sockfd);
+	       			closeClient(id,sockfd);
 	       			logger.printf("epoll_ctl: EPOLL_CTL_MOD failed\n");
 	       		}
 
@@ -153,10 +147,7 @@ int main(int argc,char *argv[]){
 	       		if(cmd==0){//echo
 	       			len_2 = htonl(len-1);
 	       			if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,buff+5,len-5,MSG_NOSIGNAL)==-1){
-	       				if(id!=0){
-							data.erase(id);
-	       				}
-   						close(sockfd);
+	       				closeClient(id,sockfd);
    						logger.printf("push echo failed,broken link\n",id);
 	       			}
 	       		}else if(cmd==1){//bind
@@ -169,6 +160,7 @@ int main(int argc,char *argv[]){
 	       				close(sockfd);
 	       				continue;
 	       			}
+	       			unbound_clients.erase(sockfd);//bind success or failed, we both need to erase it from unbound_clients.
 	       			if(len!=9){//invalid param
 	       				logger.printf("invalid param len!=9\n");
 	       				close(sockfd);

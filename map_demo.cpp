@@ -14,6 +14,7 @@ int main()
     // Add two new entries to the unordered_map
     u.insert({4,444});
     u[5] = 555;
+    u[5] = 999;
     u.erase(2);
  
     // Iterate and print keys and values of unordered_map
