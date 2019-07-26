@@ -201,6 +201,7 @@ int main(int argc,char *argv[]){
 	       					bound_clients.erase(id);
 	       					close(sockfd);
 	       					logger.printf("(id:%ld) push failed,broken link\n",id);
+	       					logger.printf("errno:%d\n", errno);
 	       				}
 	       			}
 	       		} else if(cmd==3){//multi push
@@ -272,20 +273,20 @@ int main(int argc,char *argv[]){
 	       			len-=5;
 	       			len_2=htonl(len+4);
 	       			for(const auto& client : bound_clients ) {
-	       				sockfd=client.second;
-	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
+						if(sockfd == client.second) continue;
+	       				if(send(client.second,&len_2,4,MSG_NOSIGNAL)==-1 || send(client.second,content,len,MSG_NOSIGNAL)==-1){
 	       					bound_clients.erase(client.first);
-	       					close(sockfd);
+	       					close(client.second);
 	       					logger.printf("(id:%ld) push failed,broken link\n",client.first);
 	       					logger.printf("errno:%d\n", errno);
 	       				}
 				    }
 				    for(const auto& client : unbound_clients ) {
-	       				sockfd=client;
-	       				if(send(sockfd,&len_2,4,MSG_NOSIGNAL)==-1 || send(sockfd,content,len,MSG_NOSIGNAL)==-1){
-	       					unbound_clients.erase(sockfd);
-	       					close(sockfd);
-	       					logger.printf("(fd:%ld) push failed,broken link\n",sockfd);
+						if(sockfd == client) continue;
+	       				if(send(client,&len_2,4,MSG_NOSIGNAL)==-1 || send(client,content,len,MSG_NOSIGNAL)==-1){
+	       					unbound_clients.erase(client);
+	       					close(client);
+	       					logger.printf("(fd:%ld) push failed,broken link\n",client);
 	       					logger.printf("errno:%d\n", errno);
 	       				}
 				    }
